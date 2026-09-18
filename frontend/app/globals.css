@@ -75,3 +75,14 @@ article:hover { border-color: #426859; }
   .hero-art { max-width: 460px; margin: 0 auto; }
 }
 @media print { .hero-art { display: none; } }
+
+.hero-outdoor { position: relative; isolation: isolate; display: flex; min-height: 390px; padding: 44px 0; overflow: hidden; }
+.hero-outdoor > div { position: relative; z-index: 2; width: 58%; }
+.hero-art { position: absolute; z-index: -1; inset: 0 0 0 auto; width: 85%; height: 100%; object-fit: cover; object-position: right center; border-radius: 0; mask-image: linear-gradient(to right, transparent 0%, #000 52%); }
+.hero-outdoor::after { content: ""; position: absolute; z-index: 1; inset: 0; pointer-events: none; background: linear-gradient(to right, #090f18 0%, #090f18f2 29%, #090f1899 48%, transparent 72%); }
+@media (max-width: 768px) {
+  .hero-outdoor { min-height: 540px; padding: 0 0 235px; align-items: flex-start; }
+  .hero-outdoor > div { width: 100%; }
+  .hero-art { width: 100%; max-width: none; height: 290px; top: auto; bottom: 0; object-position: center; mask-image: linear-gradient(to bottom, transparent, #000 32%); }
+  .hero-outdoor::after { background: linear-gradient(to bottom, #090f18 0%, #090f18d9 42%, transparent 66%); }
+}
