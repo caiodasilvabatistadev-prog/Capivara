@@ -4,6 +4,9 @@ from pydantic import BaseModel
 class Politician(BaseModel):
     id: int
     provider: str = "camara"
+    role: str = "Deputado federal"
+    institution: str = "Câmara dos Deputados"
+    power: str = "legislativo"
     name: str
     party: str
     state: str

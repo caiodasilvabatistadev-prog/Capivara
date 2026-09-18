@@ -51,13 +51,13 @@ def make_pdf(data: Dashboard) -> bytes:
         [
             paragraph("CAPIVARA | CONSULTA PÚBLICA", "SmallReport"),
             paragraph(data.politician.name, "Title"),
-            paragraph(f"Deputado federal | {data.politician.party} - {data.politician.state}"),
+            paragraph(f"{data.politician.role} | {data.politician.institution}"),
             paragraph(
                 f"Período da fonte: {data.year or 'não informado'} | "
                 f"Consulta: {data.fetched_at.strftime('%d/%m/%Y %H:%M UTC')}",
                 "SmallReport",
             ),
-            paragraph("Indicadores para acompanhar o mandato", "Heading1"),
+            paragraph("Perfil e indicadores disponíveis", "Heading1"),
         ]
     )
     for metric in data.metrics:
@@ -127,7 +127,7 @@ def make_pdf(data: Dashboard) -> bytes:
         canvas.setStrokeColor(colors.HexColor("#cbd9d3"))
         canvas.line(18 * mm, 16 * mm, 192 * mm, 16 * mm)
         canvas.setFont("Helvetica", 8)
-        canvas.drawString(18 * mm, 11 * mm, "Capivara | Dados oficiais da Câmara dos Deputados")
+        canvas.drawString(18 * mm, 11 * mm, "Capivara | Dados de fontes oficiais")
         canvas.drawRightString(192 * mm, 11 * mm, f"Página {doc.page}")
         canvas.restoreState()
 
@@ -138,7 +138,7 @@ def make_pdf(data: Dashboard) -> bytes:
         leftMargin=18 * mm,
         topMargin=18 * mm,
         bottomMargin=22 * mm,
-        title=f"Perfil parlamentar - {data.politician.name}",
+        title=f"Perfil público - {data.politician.name}",
         author="Capivara - Consulta Pública",
     ).build(story, onFirstPage=footer, onLaterPages=footer)
     return output.getvalue()

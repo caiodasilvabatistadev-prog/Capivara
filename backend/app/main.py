@@ -10,6 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.concurrency import run_in_threadpool
 
 from app.dashboard import Dashboard
+from app.directories import ExecutiveProvider, JudicialProvider, SenateProvider
 from app.models import Politician
 from app.pdf_report import make_pdf
 from app.providers import CamaraProvider, Provider
@@ -27,7 +28,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         timeout=15,
         headers={"Accept": "application/json"},
     ) as client:
-        app.state.providers = {"camara": CamaraProvider(client)}
+        app.state.providers = {
+            "camara": CamaraProvider(client),
+            "senado": SenateProvider(client),
+            "executivo": ExecutiveProvider(client),
+            "judiciario": JudicialProvider(client),
+        }
         yield
 
 
@@ -71,12 +77,23 @@ async def health() -> dict[str, str]:
 
 @app.get("/search")
 async def search(
-    request: Request, q: str = Query(min_length=2, max_length=100)
+    request: Request,
+    q: str = Query(min_length=2, max_length=100),
+    provider: str = Query(default="camara", pattern="^(camara|senado|executivo|judiciario)$"),
 ) -> list[Politician]:
     name = q.strip()
     if len(name) < 2:
         raise HTTPException(422, "Informe pelo menos dois caracteres")
-    return await provider_for(request, "camara").search(name)
+    return await provider_for(request, provider).search(name)
+
+
+@app.get("/autocomplete")
+async def autocomplete(
+    request: Request,
+    q: str = Query(min_length=2, max_length=100),
+    provider: str = Query(default="camara", pattern="^(camara|senado|executivo|judiciario)$"),
+) -> list[Politician]:
+    return (await search(request, q, provider))[:8]
 
 
 @app.get("/politicians/{provider}/{id}")
@@ -96,11 +113,16 @@ async def dashboard(request: Request, provider: str, id: int) -> Dashboard:
 @app.post("/reports/pdf")
 async def pdf_report(data: Dashboard) -> Response:
     content = await run_in_threadpool(make_pdf, data)
+    filename = (
+        f"deputado-{data.politician.id}"
+        if data.politician.provider == "camara"
+        else f"perfil-{data.politician.id}"
+    )
     return Response(
         content,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="deputado-{data.politician.id}.pdf"',
+            "Content-Disposition": f'attachment; filename="{filename}.pdf"',
             "Cache-Control": "no-store",
         },
     )

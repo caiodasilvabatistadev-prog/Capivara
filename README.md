@@ -2,7 +2,7 @@
 
 Consulta Pública
 
-MVP com FastAPI / Python 3.13 e Next.js / TypeScript / Tailwind. Consulta a API oficial da Câmara, sem banco, login, cache ou histórico de buscas.
+MVP com FastAPI / Python 3.13 e Next.js / TypeScript / Tailwind. Consulta fontes oficiais dos três poderes no âmbito federal, com a cobertura inicial descrita abaixo, sem banco, login, cache ou histórico de buscas.
 
 ## Executar
 
@@ -34,7 +34,7 @@ Ou, na raiz: `docker compose up --build`.
 - `GET /search?q=Maria`: busca por nome, paginação interna até o fim dos resultados.
 - `GET /politicians/camara/1`: perfil pelo identificador oficial.
 
-IDs/providers desconhecidos retornam 404; parâmetros inválidos, 422; fonte indisponível ou resposta inválida, 502. A busca consulta deputados conforme os filtros padrão da Câmara; não agrega Senado nem outras esferas neste MVP.
+IDs/providers desconhecidos retornam 404; parâmetros inválidos, 422; fonte indisponível ou resposta inválida, 502. A busca aceita provider=camara|senado|executivo|judiciario (padrão Câmara). /autocomplete usa o mesmo contrato, limitado a 8 sugestões. Não agrega fontes na mesma consulta.
 
 ## Qualidade
 
@@ -56,10 +56,20 @@ Não inclua dados sensíveis nas configurações; esta integração não requer 
 
 ## Dashboard e PDF
 
-Cada perfil apresenta gastos, presença, atividade legislativa, recursos e emendas da página principal oficial. A dashboard permanece no projeto e permite ler todas as seções e baixar um PDF organizado. Não é uma avaliação política nem um registro de candidaturas eleitorais.
+Os perfis da Câmara apresentam gastos, presença, atividade legislativa, recursos e emendas da página principal oficial. As demais fontes mostram os perfis institucionais disponíveis na cobertura inicial. A dashboard permanece no projeto e permite ler todas as seções e baixar um PDF organizado. Não é uma avaliação política nem um registro de candidaturas eleitorais.
 
 `GET /politicians/camara/{id}/dashboard` consulta a API e o perfil público da Câmara. Campos ausentes aparecem como não informados, sem substituir por zero. O ano e as atualizações são os publicados pela fonte. A estrutura HTML pode mudar; páginas inválidas retornam 502.
 
 `POST /reports/pdf` recebe o snapshot da dashboard exibida e retorna um PDF em memória, com download. Não salva arquivos nem pesquisas no servidor. Valores autorizados, empenhados e pagos não são somados. Percentuais originais eventualmente inconsistentes são preservados nas tabelas, mas não usados para notas ou rankings. Páginas vinculadas, vídeos e áudios não são copiados.
 
 O backend permite GET/POST por CORS somente para os domínios configurados. Logs de acesso HTTP ficam desativados no container para não registrar nomes pesquisados.
+
+## Três poderes e busca sugerida
+
+Dark mode, sugestões após 350 ms, cancelamento de requisições anteriores, navegação por setas/Enter/Escape e fotos oficiais (inicial em caso de ausência ou falha). A foto depende da disponibilidade do servidor oficial e não é armazenada.
+
+Cobertura federal inicial: Legislativo (Câmara e senadores em exercício), Executivo (titulares da Saúde e Fazenda) e Judiciário (ministros em atividade do STJ). Não cobre todos os órgãos, STF, presidência, estados ou municípios. As fontes do Planalto bloquearam acesso automático e o STF não estava acessível neste ambiente; não foram substituídas por listas fictícias ou desatualizadas.
+
+Senado: https://legis.senado.leg.br/dadosabertos/senador/lista/atual.json
+STJ: https://www.stj.jus.br/web/verMinistrosSTJ?parametro=1
+Executivo: páginas de composição oficiais dos ministérios. IDs internos 1 e 2 identificam as pastas Saúde e Fazenda, resolvendo seu titular a cada consulta; não são identificadores governamentais de pessoas. Os perfis novos incluem cargo, órgão e contatos/currículo disponíveis, sem indicadores parlamentares inventados. Ausência de fonte válida retorna erro 502.

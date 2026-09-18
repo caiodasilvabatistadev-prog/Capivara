@@ -7,7 +7,7 @@ import { person, dashboard } from "./fixtures";
 async function openDashboard() {
   render(<Home />); const user = userEvent.setup();
   expect(screen.getByRole("button", { name: "Buscar" })).toBeDisabled();
-  await user.type(screen.getByRole("textbox"), "Maria");
+  await user.type(screen.getByRole("combobox", { name: "Nome da pessoa" }), "Maria");
   await user.click(screen.getByRole("button", { name: "Buscar" }));
   await user.click(await screen.findByRole("button", { name: "Ver dashboard de Maria" }));
   await screen.findByText("Dados oficiais consultados na Câmara dos Deputados.");
@@ -43,7 +43,7 @@ test.each([true, false])("download do PDF ou erro (%s)", async ok => {
 test.each([true, false])("mostra vazio ou erro (%s)", async ok => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok, json: async () => [] }));
   render(<Home />); const user = userEvent.setup();
-  await user.type(screen.getByRole("textbox"), "Maria"); await user.click(screen.getByRole("button", { name: "Buscar" }));
-  if (ok) expect(await screen.findByText("Nenhum parlamentar encontrado.")).toBeVisible();
+  await user.type(screen.getByRole("combobox", { name: "Nome da pessoa" }), "Maria"); await user.click(screen.getByRole("button", { name: "Buscar" }));
+  if (ok) expect(await screen.findByText("Nenhuma pessoa encontrada nesta fonte.")).toBeVisible();
   else expect(await screen.findByRole("alert")).toBeVisible();
 });
