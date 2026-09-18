@@ -11,6 +11,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.dashboard import Dashboard
 from app.directories import ExecutiveProvider, JudicialProvider, SenateProvider
+from app.editorial import PublicContext, context_for
 from app.models import Politician
 from app.pdf_report import make_pdf
 from app.providers import CamaraProvider, Provider
@@ -108,6 +109,14 @@ async def dashboard(request: Request, provider: str, id: int) -> Dashboard:
     if id < 1:
         raise HTTPException(422, "ID deve ser positivo")
     return await provider_for(request, provider).dashboard(id)
+
+
+@app.get("/politicians/{provider}/{id}/context")
+async def public_context(request: Request, provider: str, id: int) -> PublicContext:
+    if id < 1:
+        raise HTTPException(422, "ID deve ser positivo")
+    person = await provider_for(request, provider).get(id)
+    return context_for(person)
 
 
 @app.post("/reports/pdf")

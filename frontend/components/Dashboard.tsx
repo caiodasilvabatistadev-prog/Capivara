@@ -1,4 +1,5 @@
 "use client";
+import PublicContext, { contextBlocks, type Context } from "./PublicContext";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { type DashboardData, type ReportBlock, downloadPdf } from "../lib/api";
@@ -23,6 +24,7 @@ function Block({ block }: { block: ReportBlock }) {
 }
 
 export default function Dashboard({ data, onBack }: { data: DashboardData; onBack: () => void }) {
+  const [context, setContext] = useState<Context | null>(null);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const person = data.politician;
@@ -35,13 +37,13 @@ export default function Dashboard({ data, onBack }: { data: DashboardData; onBac
   const amendments = data.sections.flatMap(section => section.blocks).filter(block => block.kind === "table" && block.text.startsWith("Emenda: "));
   async function exportPdf() {
     setExporting(true); setError("");
-    try { await downloadPdf(data); } catch (error) { setError((error as Error).message); }
+    try { await downloadPdf(context ? { ...data, sections: [...data.sections, { title: "Notícias e situação judicial", blocks: contextBlocks(context) }] } : data); } catch (error) { setError((error as Error).message); }
     finally { setExporting(false); }
   }
   return <section aria-label="Perfil" className="mt-8">
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <button className="text-sm font-semibold text-emerald-900 underline" onClick={onBack}>Voltar aos resultados</button>
-      <div className="flex gap-3"><button className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold" onClick={() => window.print()}>Imprimir dashboard</button><button disabled={exporting} className="rounded-xl bg-emerald-900 px-4 py-3 text-sm font-semibold text-white" onClick={() => void exportPdf()}>{exporting ? "Gerando PDF…" : "Baixar PDF completo"}</button></div>
+      <div className="flex flex-wrap gap-3"><button className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold" onClick={() => document.getElementById("public-context")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Notícias e situação judicial</button><button className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold" onClick={() => window.print()}>Imprimir dashboard</button><button disabled={exporting} className="rounded-xl bg-emerald-900 px-4 py-3 text-sm font-semibold text-white" onClick={() => void exportPdf()}>{exporting ? "Gerando PDF…" : "Baixar PDF completo"}</button></div>
     </div>
     {error && <p role="alert" className="mb-5 text-red-700">{error}</p>}
     <header className="rounded-2xl border bg-white p-7 sm:flex sm:items-center sm:gap-6">
@@ -53,6 +55,7 @@ export default function Dashboard({ data, onBack }: { data: DashboardData; onBac
     {groups.map(group => <section aria-label={group} className="mb-10" key={group}><h3 className="mb-4 text-xl font-bold">{group}</h3><div className={`grid gap-4 sm:grid-cols-2 ${group === "Gastos públicos" ? "" : "lg:grid-cols-3"}`}>{data.metrics.filter(metric => metric.group === group).map(metric => <article className="rounded-2xl border bg-white p-5" key={metric.label}><h4 className="mb-3 text-sm font-semibold text-slate-600">{labels[metric.label] || metric.label}</h4><p className="break-words text-2xl font-bold tracking-tight text-emerald-950">{metric.value.replace(/^1 dias$/, "1 dia").replace(/^1 reuniões$/, "1 reunião")}</p><p className="mt-3 text-xs leading-relaxed text-slate-500">{metric.explanation}</p></article>)}</div></section>)}
     {months.length > 0 && <section aria-label="Gasto mensal" className="mb-10 rounded-2xl border bg-white p-6"><h3 className="text-xl font-bold">Cota parlamentar por mês</h3><p className="mb-6 mt-2 text-sm text-slate-500">Valores publicados pela Câmara. As barras comparam os meses, sem indicar limite de gastos.</p><div className="space-y-4">{months.map(row => <div className="grid grid-cols-[2.5rem_1fr_8rem] items-center gap-3 text-sm" key={row.month}><span>{row.month}</span><div aria-hidden="true" className="h-3 rounded-full bg-emerald-50"><div className="h-3 rounded-full bg-emerald-700" style={{ width: `${100 * row.amount / maximum}%` }} /></div><span className="text-right font-medium">R$ {row.label}</span></div>)}</div></section>}
     {amendments.length > 0 && <section aria-label="Emendas para a população" className="mb-10"><h3 className="text-xl font-bold">Emendas para estados e municípios</h3><p className="mb-5 mt-2 text-sm text-slate-600">Destinações destacadas na página oficial. Autorizado é previsão no orçamento; empenhado é reservado; pago é transferido. Não somamos essas etapas.</p><div className="grid gap-4 lg:grid-cols-3">{amendments.map(block => <article className="rounded-2xl border bg-white p-5" key={block.text}><h4 className="mb-5 font-semibold leading-relaxed">{block.text.slice(8)}</h4><dl className="space-y-3">{block.rows.slice(1).map((row, i) => <div className="flex flex-wrap justify-between gap-2 text-sm" key={i}><dt className="text-slate-500">{row[0]}</dt><dd className="font-bold">{row[1]}</dd></div>)}</dl></article>)}</div></section>}
+    <PublicContext key={person.provider + "-" + person.id} person={person} onLoaded={setContext} />
     <h3 className="mb-4 text-xl font-bold">Dados e detalhes da fonte</h3><p className="mb-5 text-sm text-slate-600">Abra uma seção para ler os dados disponíveis nesta integração sem sair daqui. Percentuais das tabelas são reproduzidos como publicados; eventuais inconsistências pertencem à fonte.</p>
     <div className="space-y-3">{data.sections.map(section => <details className="rounded-xl border bg-white p-5" key={section.title}><summary className="cursor-pointer font-semibold">{section.title}</summary><div className="mt-5 text-sm">{section.blocks.map((block, i) => <Block block={block} key={i} />)}</div></details>)}</div>
     <div className="mt-6 text-xs leading-relaxed text-slate-500">{data.updates.map(update => <p key={update}>{update}</p>)}<p className="mt-2">Os dados podem ter períodos de atualização diferentes. Não informado não significa ausência de atividade.</p></div>

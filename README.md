@@ -73,3 +73,13 @@ Cobertura federal inicial: Legislativo (Câmara e senadores em exercício), Exec
 Senado: https://legis.senado.leg.br/dadosabertos/senador/lista/atual.json
 STJ: https://www.stj.jus.br/web/verMinistrosSTJ?parametro=1
 Executivo: páginas de composição oficiais dos ministérios. IDs internos 1 e 2 identificam as pastas Saúde e Fazenda, resolvendo seu titular a cada consulta; não são identificadores governamentais de pessoas. Os perfis novos incluem cargo, órgão e contatos/currículo disponíveis, sem indicadores parlamentares inventados. Ausência de fonte válida retorna erro 502.
+
+## Notícias e situação judicial
+
+A dashboard consulta registros editoriais revisados pelo botão da seção; não classifica pessoas por manchetes e não faz coleta automática nem monitoramento processual. A API /politicians/{provider}/{id}/context valida a identidade na fonte governamental antes de associar registros por provider, ID e nome. Sem registro revisado, informa ausência de cobertura; nunca afirma inexistência de condenações.
+
+Curadoria inicial em app/editorial.py, versionada no Git: primeiro perfil Sergio Moro (Senado 6331), com ação eleitoral julgada improcedente em maio/2024 e Lei 15.245/2025. Não são exemplos fictícios nem uma ficha completa; estados históricos têm data explícita e fonte oficial/jornalística. Nenhuma acusação de corrupção foi cadastrada sem comprovação. Os outros perfis não têm registros editoriais revisados nesta primeira versão.
+
+Estados aceitos: condenação definitiva (exige trânsito em julgado), condenação recorrível, em andamento, absolvido, arquivado, anulado e pedido rejeitado. Todo caso exige tribunal, processo, data e URL oficial .jus.br, além de referência jornalística. Uma improcedência eleitoral não é rotulada como absolvição criminal. Ações distinguem proposta, aprovada e execução documentada; autoria não presume crédito exclusivo nem impacto comprovado.
+
+Para ampliar a cobertura, revisar documentação por perfil e cadastrar fontes, contexto e datas com os mesmos critérios, independentemente de partido; registrar revisões e correções no histórico do Git. Este fluxo é editorial, sem IA inferindo culpa e sem scraping de artigos completos. O PDF inclui os registros e fontes consultados na tela quando a seção foi carregada.
