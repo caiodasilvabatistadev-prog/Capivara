@@ -68,7 +68,7 @@ export default function Home() {
   const expanded = focused && !busy && suggestions.length > 0;
   return <><Header onNavigate={navigate} /><main className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
     <p className="mb-3 text-xs font-bold uppercase tracking-widest text-emerald-800">Dados oficiais · Três poderes</p>
-    <h1 className="max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">O poder público, mais perto de você.</h1>
+    <h1 className="max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">Saiba todos os passos do seu candidato.</h1>
     <p className="mt-5 mb-8 max-w-3xl text-lg leading-relaxed text-slate-600">Encontre representantes e autoridades. Leia perfis, acompanhe os dados disponíveis e baixe relatórios sem sair daqui.</p>
     <div role="group" aria-label="Poder consultado" className="mb-5 flex flex-wrap gap-3">{(["legislativo", "executivo", "judiciario"] as Power[]).map(value => <button key={value} disabled={busy} aria-pressed={power === value} className={"scope rounded-xl border px-5 py-3 font-semibold " + (power === value ? "scope-selected" : "")} onClick={() => { setPower(value); resetScope(); }}>{value === "judiciario" ? "Judiciário" : value[0].toUpperCase() + value.slice(1)}</button>)}</div>
     <form className="search-panel relative rounded-2xl border bg-white p-5 sm:p-6" onSubmit={event => { event.preventDefault(); void load("/search?q=" + encodeURIComponent(query.trim()) + filter); }}>
