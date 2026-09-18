@@ -2,7 +2,14 @@
 name = "political-data-api"
 version = "0.1.0"
 requires-python = ">=3.13"
-dependencies = ["fastapi>=0.115,<1", "httpx>=0.28,<1", "uvicorn[standard]>=0.34,<1", "pydantic-settings>=2.8,<3"]
+dependencies = [
+    "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
+    "uvicorn[standard]>=0.34,<1",
+    "pydantic-settings>=2.8,<3",
+    "beautifulsoup4>=4.15,<5",
+    "reportlab>=4.4,<5",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "pytest-asyncio>=0.25,<2", "pytest-cov>=6,<8", "respx>=0.22,<1", "ruff>=0.11,<1", "mypy>=1.15,<2"]
@@ -25,3 +32,7 @@ strict = true
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[[tool.mypy.overrides]]
+module = ["reportlab.*"]
+ignore_missing_imports = true

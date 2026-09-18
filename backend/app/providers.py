@@ -2,12 +2,14 @@ from typing import Any, Protocol
 
 import httpx
 
+from app.dashboard import Dashboard, parse_dashboard
 from app.models import Politician
 
 
 class Provider(Protocol):
     async def search(self, name: str) -> list[Politician]: ...
     async def get(self, official_id: int) -> Politician: ...
+    async def dashboard(self, official_id: int) -> Dashboard: ...
 
 
 class CamaraProvider:
@@ -46,3 +48,9 @@ class CamaraProvider:
         response = await self.client.get(f"deputados/{official_id}")
         response.raise_for_status()
         return self.normalize(response.json()["dados"])
+
+    async def dashboard(self, official_id: int) -> Dashboard:
+        politician = await self.get(official_id)
+        response = await self.client.get(politician.source_url)
+        response.raise_for_status()
+        return parse_dashboard(response.text, politician)

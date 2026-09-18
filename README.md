@@ -13,7 +13,7 @@ python -m venv .venv
 # Linux/macOS: source .venv/bin/activate
 pip install --require-hashes -r requirements-dev.txt
 pip install --no-deps -e .
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --no-access-log
 ```
 
 Em outro terminal:
@@ -53,3 +53,13 @@ Fonte e contrato: https://dadosabertos.camara.leg.br/swagger/api.html
 Crie dois serviços a partir deste repositório com diretórios raiz `backend` e `frontend`; cada um possui Dockerfile. No backend, configure `APP_CORS_ORIGINS` como array JSON contendo o domínio HTTPS do frontend, e healthcheck `/health`. No frontend, configure `NEXT_PUBLIC_API_URL` com o domínio público HTTPS do backend antes do build (é incorporado ao bundle). Os containers respeitam `PORT`; após alterar a URL da API, reconstrua o frontend. Não use o hostname interno do Docker/Railway como URL do navegador.
 
 Não inclua dados sensíveis nas configurações; esta integração não requer chave. `.env.example` documenta variáveis, mas não é carregado automaticamente pelo backend. Configure-as no ambiente do processo.
+
+## Dashboard e PDF
+
+Cada perfil apresenta gastos, presença, atividade legislativa, recursos e emendas da página principal oficial. A dashboard permanece no projeto e permite ler todas as seções e baixar um PDF organizado. Não é uma avaliação política nem um registro de candidaturas eleitorais.
+
+`GET /politicians/camara/{id}/dashboard` consulta a API e o perfil público da Câmara. Campos ausentes aparecem como não informados, sem substituir por zero. O ano e as atualizações são os publicados pela fonte. A estrutura HTML pode mudar; páginas inválidas retornam 502.
+
+`POST /reports/pdf` recebe o snapshot da dashboard exibida e retorna um PDF em memória, com download. Não salva arquivos nem pesquisas no servidor. Valores autorizados, empenhados e pagos não são somados. Percentuais originais eventualmente inconsistentes são preservados nas tabelas, mas não usados para notas ou rankings. Páginas vinculadas, vídeos e áudios não são copiados.
+
+O backend permite GET/POST por CORS somente para os domínios configurados. Logs de acesso HTTP ficam desativados no container para não registrar nomes pesquisados.

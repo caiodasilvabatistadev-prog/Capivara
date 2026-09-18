@@ -4,11 +4,14 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from starlette.concurrency import run_in_threadpool
 
+from app.dashboard import Dashboard
 from app.models import Politician
+from app.pdf_report import make_pdf
 from app.providers import CamaraProvider, Provider
 
 
@@ -29,7 +32,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Consulta Pública", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=Settings().cors_origins, allow_methods=["GET"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=Settings().cors_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 
 @app.exception_handler(httpx.HTTPError)
@@ -76,3 +84,23 @@ async def politician(request: Request, provider: str, id: int) -> Politician:
     if id < 1:
         raise HTTPException(422, "ID deve ser positivo")
     return await provider_for(request, provider).get(id)
+
+
+@app.get("/politicians/{provider}/{id}/dashboard")
+async def dashboard(request: Request, provider: str, id: int) -> Dashboard:
+    if id < 1:
+        raise HTTPException(422, "ID deve ser positivo")
+    return await provider_for(request, provider).dashboard(id)
+
+
+@app.post("/reports/pdf")
+async def pdf_report(data: Dashboard) -> Response:
+    content = await run_in_threadpool(make_pdf, data)
+    return Response(
+        content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="deputado-{data.politician.id}.pdf"',
+            "Cache-Control": "no-store",
+        },
+    )

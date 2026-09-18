@@ -1,12 +1,20 @@
 import { test, expect } from "@playwright/test";
-test("consulta, perfil e impressão", async ({ page }) => {
-  const person = { id: 1, provider: "camara", name: "Maria", party: "ABC", state: "SP", email: null, source_url: "https://www.camara.leg.br/deputados/1" };
+import { person, dashboard } from "../tests/fixtures";
+test("dashboard, PDF e detalhes permanecem no projeto", async ({ page }) => {
   await page.route("**/search?q=*", route => route.fulfill({ json: [person] }));
-  await page.route("**/politicians/camara/1", route => route.fulfill({ json: person }));
+  await page.route("**/politicians/camara/1/dashboard", route => route.fulfill({ json: dashboard }));
+  await page.route("**/reports/pdf", route => route.fulfill({ body: "%PDF-1.4\nReport", headers: { "Content-Type": "application/pdf", "Access-Control-Allow-Origin": "http://localhost:3000", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST,OPTIONS" } }));
   await page.addInitScript(() => { window.print = () => { document.body.dataset.printed = "true"; }; });
   await page.goto("/"); await page.getByRole("textbox").fill("Maria"); await page.getByRole("button", { name: "Buscar", exact: true }).click();
-  await page.getByRole("button", { name: "Ver perfil de Maria" }).click();
-  await expect(page.getByRole("link", { name: "Consultar fonte oficial" })).toHaveAttribute("href", person.source_url);
-  await page.getByRole("button", { name: "Imprimir perfil" }).click();
+  await page.getByRole("button", { name: "Ver dashboard de Maria" }).click();
+  await expect(page.getByText("R$ 500,00")).toBeVisible();
+  await expect(page.getByText("10 dias")).toBeVisible();
+  await expect(page.getByRole("link")).toHaveCount(0);
+  const pending = page.waitForEvent("download"); await page.getByRole("button", { name: "Baixar PDF completo" }).click();
+  expect((await pending).suggestedFilename()).toBe("deputado-1.pdf");
+  await expect(page).toHaveURL("http://localhost:3000/");
+  await page.getByRole("button", { name: "Imprimir dashboard" }).click();
   await expect(page.locator("body")).toHaveAttribute("data-printed", "true");
+  await page.getByRole("button", { name: "Voltar aos resultados" }).click();
+  await expect(page.getByRole("region", { name: "Perfil" })).toHaveCount(0);
 });
