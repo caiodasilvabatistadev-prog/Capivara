@@ -14,6 +14,7 @@ from app.dashboard import Dashboard
 from app.directories import ExecutiveProvider, JudicialProvider, SenateProvider
 from app.editorial import PublicContext, context_for
 from app.models import Politician
+from app.news import NewsResult, search_news
 from app.pdf_report import make_pdf
 from app.providers import CamaraProvider, Provider
 from app.rankings import MetricName, Ranking, ranking
@@ -149,3 +150,11 @@ async def pdf_report(data: Dashboard) -> Response:
             "Cache-Control": "no-store",
         },
     )
+
+
+@app.get("/politicians/{provider}/{id}/news")
+async def politician_news(request: Request, provider: str, id: int) -> NewsResult:
+    if id < 1:
+        raise HTTPException(422, "ID deve ser positivo")
+    person = await provider_for(request, provider).get(id)
+    return await search_news(request.app.state.http_client, person.name)

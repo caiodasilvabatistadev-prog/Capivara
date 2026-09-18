@@ -105,3 +105,7 @@ Ausências: consulta perfis da Câmara com concorrência limitada a oito e prazo
 Projetos aprovados: ainda indisponível, até levantar aprovação final e autoria validada no período. Não substitui por projetos apresentados, votações ou requerimentos aprovados.
 
 Fundos: independentes do poder, nacionais. Curadoria dos cinco maiores repasses do Fundo Partidário no balanço TSE de 2025 (dotação + multas), e de todos os 30 valores destinados no FEFC 2026 (não comprova recebimento por candidaturas). Fontes oficiais e data de publicação na resposta; revisão manual em 18/09/2026. A coleta direta do TSE retornou 403 neste ambiente; snapshots não se apresentam como atualização automática e não são extrapolados para outros anos.
+
+### Busca automática de notícias
+
+Ao abrir um perfil, `/politicians/{provider}/{id}/news` resolve o nome na fonte oficial e consulta o RSS de busca do Google Notícias, limitado a G1, Folha, Estadão, UOL, CNN Brasil, Poder360 e Intercept Brasil. Filtra localmente o nome completo e os termos no título, valida o domínio do veículo, remove títulos duplicados e retorna até 20 itens por data. Sem banco, cache ou coleta periódica. A indexação é parcial; homônimos e menções a terceiros podem existir. Não extrai artigos, contorna assinaturas ou determina situação judicial por palavras-chave. Exibe títulos, datas e referências dentro do produto, separado da curadoria judicial. Não inventa resumos a partir do título; resultados automáticos não entram no PDF como registros revisados.

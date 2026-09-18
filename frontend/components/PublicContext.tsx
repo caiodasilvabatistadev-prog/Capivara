@@ -39,7 +39,7 @@ export default function PublicContext({ person, onLoaded }: { person: Politician
     finally { setBusy(false); }
   }
   return <section id="public-context" aria-label="Notícias e situação judicial" className="mb-10 rounded-2xl border bg-white p-6">
-    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-emerald-800">Fontes verificadas · Sem rankings</p><h3 className="text-2xl font-bold">Ações públicas, polêmicas e situação judicial</h3>
+    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-emerald-800">Fontes e revisão dos registros · Sem rankings</p><h3 className="text-2xl font-bold">Ações públicas, polêmicas e situação judicial</h3>
     <p className="my-4 text-sm leading-relaxed text-slate-600">Reportagens dão contexto; o estado de um processo exige fonte judicial. Benefícios e ações mostram a etapa documentada, sem presumir resultados para a população.</p>
     <button className="rounded-xl border px-4 py-3 text-sm font-semibold" disabled={busy} onClick={() => void load()}>{busy ? "Consultando registros…" : data ? "Consultar novamente" : "Consultar notícias e registros revisados"}</button>
     {error && <p role="alert" className="mt-4 text-red-700">{error}</p>}

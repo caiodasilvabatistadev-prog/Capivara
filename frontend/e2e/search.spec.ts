@@ -87,3 +87,20 @@ test("rankings por poder abrem a dashboard dentro do produto", async ({ page }) 
   await expect(page.getByRole("link")).toHaveCount(0);
   await expect(page).toHaveURL("http://localhost:3000/");
 });
+
+test("notícias são buscadas ao abrir perfil e não viram situação judicial", async ({ page }) => {
+  await page.route("**/search?q=*", route => route.fulfill({ json: [person] }));
+  await page.route("**/politicians/camara/1/dashboard", route => route.fulfill({ json: dashboard }));
+  await page.route("**/politicians/camara/1/news", route => route.fulfill({ json: { subject_name: "Maria", fetched_at: "2026-09-18T12:00:00Z", notice: "Busca parcial; não confirma culpa.", items: [{ title: "Maria investigada — notícia de exemplo", publisher: "G1", published_at: "2024-05-21T12:00:00Z", source_url: "https://g1.globo.com", reference_url: "https://news.google.com/a", matched_terms: ["investigação"] }] } }));
+  await page.goto("/");
+  await page.getByRole("combobox", { name: "Nome da pessoa" }).fill("Maria");
+  await page.getByRole("button", { name: "Buscar", exact: true }).click();
+  await page.getByRole("button", { name: "Ver dashboard de Maria" }).click();
+  const section = page.getByRole("region", { name: "Busca automática de notícias" });
+  await expect(section.getByText("Maria investigada — notícia de exemplo")).toBeVisible();
+  await expect(section.getByText(/Situação judicial não verificada/)).toBeVisible();
+  await section.getByText("Fonte e referência").click();
+  await expect(section.getByText("Veículo: https://g1.globo.com")).toBeVisible();
+  await expect(page.getByRole("link")).toHaveCount(0);
+  await expect(page).toHaveURL("http://localhost:3000/");
+});

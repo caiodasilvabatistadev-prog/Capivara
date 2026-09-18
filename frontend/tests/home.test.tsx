@@ -21,7 +21,7 @@ test("dashboard mostra gastos e presença sem navegar para a Câmara", async () 
   expect(screen.queryByRole("link")).not.toBeInTheDocument();
   expect(screen.getByText("R$ 500,00")).toBeVisible();
   expect(screen.getByText("10 dias")).toBeVisible();
-  expect(fetch).toHaveBeenLastCalledWith("http://localhost:8000/politicians/camara/1/dashboard", { cache: "no-store" });
+  expect(fetch).toHaveBeenCalledWith("http://localhost:8000/politicians/camara/1/dashboard", { cache: "no-store" });
   await user.click(screen.getByText("Gastos públicos", { selector: "summary" }));
   expect(screen.getByRole("table")).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Voltar aos resultados" }));

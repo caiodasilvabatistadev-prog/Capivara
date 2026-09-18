@@ -21,7 +21,7 @@ test("sugestões aceitam teclado e abrem perfil sem sair do projeto", async () =
   await user.type(input, "r"); await screen.findByRole("option", { name: /Maria/ });
   await user.keyboard("{ArrowUp}{Enter}");
   await screen.findByRole("region", { name: "Perfil" });
-  expect(fetch.mock.calls.at(-1)?.[0]).toContain("/politicians/camara/1/dashboard");
+  expect(fetch.mock.calls.find(call => String(call[0]).endsWith("/dashboard"))?.[0]).toContain("/politicians/camara/1/dashboard");
   await user.click(screen.getByRole("button", { name: "Voltar aos resultados" }));
   expect(screen.getByRole("button", { name: "Ver dashboard de Maria" })).toBeVisible();
 });
@@ -52,7 +52,7 @@ test.each(["Executivo", "Judiciário", "Senado"])("consulta a fonte selecionada:
   await user.click(await screen.findByRole("option", { name: /Maria/ }));
   await screen.findByRole("region", { name: "Perfil" });
   expect(fetch.mock.calls[0][0]).toContain("provider=" + provider);
-  expect(fetch.mock.calls.at(-1)?.[0]).toContain("/politicians/" + provider + "/1/dashboard");
+  expect(fetch.mock.calls.find(call => String(call[0]).endsWith("/dashboard"))?.[0]).toContain("/politicians/" + provider + "/1/dashboard");
   expect(screen.getByText("Dados oficiais consultados no órgão: Órgão oficial.")).toBeVisible();
 });
 
