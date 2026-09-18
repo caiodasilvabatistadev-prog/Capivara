@@ -1,0 +1,78 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+import httpx
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.models import Politician
+from app.providers import CamaraProvider, Provider
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="APP_")
+    cors_origins: list[str] = ["http://localhost:3000"]
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    async with httpx.AsyncClient(
+        base_url="https://dadosabertos.camara.leg.br/api/v2/",
+        timeout=15,
+        headers={"Accept": "application/json"},
+    ) as client:
+        app.state.providers = {"camara": CamaraProvider(client)}
+        yield
+
+
+app = FastAPI(title="Consulta Pública", lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=Settings().cors_origins, allow_methods=["GET"])
+
+
+@app.exception_handler(httpx.HTTPError)
+async def upstream_error(request: Request, exc: httpx.HTTPError) -> JSONResponse:
+    missing = isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 404
+    return JSONResponse(
+        status_code=404 if missing else 502,
+        content={"detail": "Parlamentar não encontrado" if missing else "Fonte indisponível"},
+    )
+
+
+@app.exception_handler(ValueError)
+@app.exception_handler(KeyError)
+@app.exception_handler(TypeError)
+@app.exception_handler(ValidationError)
+async def invalid_upstream(request: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": "Resposta inválida da fonte"})
+
+
+def provider_for(request: Request, name: str) -> Provider:
+    providers: dict[str, Provider] = request.app.state.providers
+    if name not in providers:
+        raise HTTPException(404, "Provider não encontrado")
+    return providers[name]
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/search")
+async def search(
+    request: Request, q: str = Query(min_length=2, max_length=100)
+) -> list[Politician]:
+    name = q.strip()
+    if len(name) < 2:
+        raise HTTPException(422, "Informe pelo menos dois caracteres")
+    return await provider_for(request, "camara").search(name)
+
+
+@app.get("/politicians/{provider}/{id}")
+async def politician(request: Request, provider: str, id: int) -> Politician:
+    if id < 1:
+        raise HTTPException(422, "ID deve ser positivo")
+    return await provider_for(request, provider).get(id)

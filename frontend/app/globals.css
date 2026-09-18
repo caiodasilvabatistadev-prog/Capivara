@@ -1,0 +1,5 @@
+@import "tailwindcss";
+body { background: #f4f7f6; color: #17352e; font-family: Arial, sans-serif; }
+button, a { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .6; }
+@media print { form, button { display: none; } }
