@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Header from "../components/Header";
 import Dashboard from "../components/Dashboard";
 import Rankings from "../components/Rankings";
@@ -67,9 +68,11 @@ export default function Home() {
   }
   const expanded = focused && !busy && suggestions.length > 0;
   return <><Header onNavigate={navigate} /><main className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
+    <section className="hero-outdoor" aria-label="Apresentação"><div>
     <p className="mb-3 text-xs font-bold uppercase tracking-widest text-emerald-800">Dados oficiais · Três poderes</p>
     <h1 className="max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">Saiba todos os passos do seu candidato.</h1>
     <p className="mt-5 mb-8 max-w-3xl text-lg leading-relaxed text-slate-600">Encontre representantes e autoridades. Leia perfis, acompanhe os dados disponíveis e baixe relatórios sem sair daqui.</p>
+    </div><Image className="hero-art" src="/capivara-tres-poderes.png" width={1536} height={1024} alt="Ilustração flat da capivara olhando por binóculos na Praça dos Três Poderes, com o Congresso, o Planalto e o STF ao fundo" unoptimized preload /></section>
     <div role="group" aria-label="Poder consultado" className="mb-5 flex flex-wrap gap-3">{(["legislativo", "executivo", "judiciario"] as Power[]).map(value => <button key={value} disabled={busy} aria-pressed={power === value} className={"scope rounded-xl border px-5 py-3 font-semibold " + (power === value ? "scope-selected" : "")} onClick={() => { setPower(value); resetScope(); }}>{value === "judiciario" ? "Judiciário" : value[0].toUpperCase() + value.slice(1)}</button>)}</div>
     <form className="search-panel relative rounded-2xl border bg-white p-5 sm:p-6" onSubmit={event => { event.preventDefault(); void load("/search?q=" + encodeURIComponent(query.trim()) + filter); }}>
       <div className="mb-5 flex flex-wrap items-center gap-3">{power === "legislativo" && <label className="text-sm font-semibold">Casa legislativa<select className="ml-3 rounded-lg border bg-slate-50 px-3 py-2" value={house} disabled={busy} onChange={event => { setHouse(event.target.value); resetScope(); }}><option value="camara">Câmara dos Deputados</option><option value="senado">Senado Federal</option></select></label>}<p className="text-sm leading-relaxed text-slate-500">{coverage[power]}</p></div>

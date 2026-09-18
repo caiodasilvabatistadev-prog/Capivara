@@ -65,3 +65,13 @@ article:hover { border-color: #426859; }
   .brand-mascot-frame { width: 64px; height: 46px; }
   .brand-mascot { width: 80px; height: 80px; top: -11px; left: -8px; }
 }
+
+.hero-outdoor { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 28px; margin-bottom: 32px; }
+.hero-outdoor h1 { font-size: clamp(2.25rem, 3.5vw, 3rem); line-height: 1.15; letter-spacing: -.025em; }
+.hero-outdoor > div > p:last-child { font-size: 17px; margin-bottom: 0; }
+.hero-art { display: block; width: 100%; height: auto; border-radius: 24px; }
+@media (max-width: 768px) {
+  .hero-outdoor { grid-template-columns: 1fr; gap: 20px; }
+  .hero-art { max-width: 460px; margin: 0 auto; }
+}
+@media print { .hero-art { display: none; } }
