@@ -32,7 +32,7 @@ test("dashboard mostra gastos e presença sem navegar para a Câmara", async () 
 test.each([true, false])("download do PDF ou erro (%s)", async ok => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({ ok: true, json: async () => [person] }).mockResolvedValueOnce({ ok: true, json: async () => dashboard }).mockResolvedValueOnce({ ok, blob: async () => new Blob(["%PDF-"]) }));
   const create = vi.fn(() => "blob:report"); const revoke = vi.fn();
-  vi.stubGlobal("URL", { createObjectURL: create, revokeObjectURL: revoke });
+  vi.stubGlobal("URL", class extends URL { static createObjectURL = create; static revokeObjectURL = revoke; });
   const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   const user = await openDashboard();
   await user.click(screen.getByRole("button", { name: "Baixar PDF completo" }));

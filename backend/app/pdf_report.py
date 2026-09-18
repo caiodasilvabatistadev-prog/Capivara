@@ -49,7 +49,7 @@ def make_pdf(data: Dashboard) -> bytes:
 
     story.extend(
         [
-            paragraph("CAPIVARA | CONSULTA PÚBLICA", "SmallReport"),
+            paragraph("PUXANDO A CAPIVARA | CONSULTA PÚBLICA", "SmallReport"),
             paragraph(data.politician.name, "Title"),
             paragraph(f"{data.politician.role} | {data.politician.institution}"),
             paragraph(
@@ -127,7 +127,7 @@ def make_pdf(data: Dashboard) -> bytes:
         canvas.setStrokeColor(colors.HexColor("#cbd9d3"))
         canvas.line(18 * mm, 16 * mm, 192 * mm, 16 * mm)
         canvas.setFont("Helvetica", 8)
-        canvas.drawString(18 * mm, 11 * mm, "Capivara | Dados de fontes oficiais")
+        canvas.drawString(18 * mm, 11 * mm, "Puxando a Capivara | Dados de fontes oficiais")
         canvas.drawRightString(192 * mm, 11 * mm, f"Página {doc.page}")
         canvas.restoreState()
 
@@ -139,6 +139,6 @@ def make_pdf(data: Dashboard) -> bytes:
         topMargin=18 * mm,
         bottomMargin=22 * mm,
         title=f"Perfil público - {data.politician.name}",
-        author="Capivara - Consulta Pública",
+        author="Puxando a Capivara - Consulta Pública",
     ).build(story, onFirstPage=footer, onLaterPages=footer)
     return output.getvalue()

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Brand from "../components/Brand";
 import Dashboard from "../components/Dashboard";
 import Portrait from "../components/Portrait";
 import { type Politician, type DashboardData, request } from "../lib/api";
@@ -57,7 +58,7 @@ export default function Home() {
   function choose(person: Politician, fromSuggestions = false) { if (fromSuggestions) setResults(suggestions); setQuery(person.name); void load("/politicians/" + person.provider + "/" + person.id + "/dashboard", true); }
   const expanded = focused && !busy && suggestions.length > 0;
   return <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
-    <div className="mb-10 flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-900 font-bold text-white">C</span><div><p className="font-bold">Capivara</p><p className="text-xs text-slate-500">Transparência para acompanhar o poder público</p></div></div><span className="rounded-full border px-3 py-2 text-xs text-slate-500">Consulta federal</span></div>
+    <header className="mb-10 flex items-center justify-between gap-4"><Brand /><span className="hidden shrink-0 rounded-full border px-3 py-2 text-xs text-slate-500 sm:inline-flex">Consulta federal</span></header>
     <p className="mb-3 text-xs font-bold uppercase tracking-widest text-emerald-800">Dados oficiais · Três poderes</p>
     <h1 className="max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">O poder público, mais perto de você.</h1>
     <p className="mt-5 mb-8 max-w-3xl text-lg leading-relaxed text-slate-600">Encontre representantes e autoridades. Leia perfis, acompanhe os dados disponíveis e baixe relatórios sem sair daqui.</p>

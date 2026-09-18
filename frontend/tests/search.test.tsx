@@ -83,7 +83,7 @@ test("PDF de outro poder usa nome de perfil e mantém os dados exibidos", async 
   const snapshot = { ...dashboard, politician: { ...person, provider: "senado" } };
   const fetch = vi.fn(async () => ({ ok: true, blob: async () => new Blob(["%PDF-"]) }));
   vi.stubGlobal("fetch", fetch);
-  vi.stubGlobal("URL", { createObjectURL: () => "blob:report", revokeObjectURL: vi.fn() });
+  vi.stubGlobal("URL", class extends URL { static createObjectURL = () => "blob:report"; static revokeObjectURL = vi.fn(); });
   const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { expect(this.download).toBe("perfil-1.pdf"); });
   await downloadPdf(snapshot);
   expect(click).toHaveBeenCalledOnce();
