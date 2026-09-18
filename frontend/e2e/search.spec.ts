@@ -67,3 +67,23 @@ test("estado judicial e fontes seguem para o PDF sem sair do projeto", async ({ 
   expect((await pending).suggestedFilename()).toBe("deputado-1.pdf");
   await expect(page).toHaveURL("http://localhost:3000/");
 });
+
+test("rankings por poder abrem a dashboard dentro do produto", async ({ page }) => {
+  await page.route("**/rankings?**", route => {
+    const params = new URL(route.request().url()).searchParams;
+    expect(params.get("provider")).toBe("camara");
+    expect(params.get("metric")).toBe("expenses");
+    return route.fulfill({ json: { provider: "camara", metric: "expenses", year: 2026, status: "partial", title: "Gastos", unit: "BRL", notice: "Somente cota parlamentar.", source_url: "https://example.com/fonte", source_as_of: null, covered: 1, total: 2, entries: [{ position: 1, id: 1, name: "Maria", value: "1234.56", detail: "Dado de teste" }] } });
+  });
+  await page.route("**/politicians/camara/1/dashboard", route => route.fulfill({ json: dashboard }));
+  await page.goto("/");
+  const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Maiores gastos com cota parlamentar" }) });
+  await card.getByRole("button", { name: "Consultar comparação" }).click();
+  await expect(card.getByText(/Cobertura parcial: 1 de 2/)).toBeVisible();
+  await card.getByText("Fonte e período", { exact: true }).click();
+  await expect(card.getByText("https://example.com/fonte", { exact: true })).toBeVisible();
+  await card.getByRole("button", { name: "Ver dashboard de Maria" }).click();
+  await expect(page.getByRole("region", { name: "Perfil", exact: true })).toBeVisible();
+  await expect(page.getByRole("link")).toHaveCount(0);
+  await expect(page).toHaveURL("http://localhost:3000/");
+});

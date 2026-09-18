@@ -113,7 +113,7 @@ def make_pdf(data: Dashboard) -> bytes:
             paragraph("Fonte e limites do relatório", "Heading1"),
             paragraph(data.politician.source_url, "SmallReport"),
             paragraph(
-                "Relatório dos dados presentes na página principal do perfil. "
+                "Relatório dos dados presentes na dashboard e nas fontes indicadas em suas seções. "
                 "Não inclui o conteúdo de páginas vinculadas, vídeos ou áudios. "
                 "Emendas autorizadas, empenhadas e pagas são etapas diferentes; "
                 "esses valores não devem ser somados.",

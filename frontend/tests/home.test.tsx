@@ -15,7 +15,7 @@ async function openDashboard() {
 }
 
 test("dashboard mostra gastos e presença sem navegar para a Câmara", async () => {
-  const fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => [person] }).mockResolvedValueOnce({ ok: true, json: async () => dashboard });
+  const fetch = vi.fn(async (url: string) => ({ ok: true, json: async () => url.includes("/dashboard") ? dashboard : [person] }));
   vi.stubGlobal("fetch", fetch);
   const user = await openDashboard();
   expect(screen.queryByRole("link")).not.toBeInTheDocument();
@@ -30,7 +30,7 @@ test("dashboard mostra gastos e presença sem navegar para a Câmara", async () 
 });
 
 test.each([true, false])("download do PDF ou erro (%s)", async ok => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({ ok: true, json: async () => [person] }).mockResolvedValueOnce({ ok: true, json: async () => dashboard }).mockResolvedValueOnce({ ok, blob: async () => new Blob(["%PDF-"]) }));
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => url.endsWith("/reports/pdf") ? { ok, blob: async () => new Blob(["%PDF-"]) } : { ok: true, json: async () => url.includes("/dashboard") ? dashboard : [person] }));
   const create = vi.fn(() => "blob:report"); const revoke = vi.fn();
   vi.stubGlobal("URL", class extends URL { static createObjectURL = create; static revokeObjectURL = revoke; });
   const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});

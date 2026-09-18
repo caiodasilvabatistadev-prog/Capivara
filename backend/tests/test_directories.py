@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 import respx
 from fastapi.testclient import TestClient
@@ -58,6 +60,12 @@ def client():
 
 
 def senate(items):
+    respx.get(
+        SENATOR["IdentificacaoParlamentar"]["UrlPaginaParlamentar"].replace("http://", "https://")
+    ).respond(503)
+    respx.get(
+        f"https://www6g.senado.leg.br/transparencia/sen/3/?ano={datetime.now(UTC).year}"
+    ).respond(503)
     respx.get(SENATE).respond(
         200, json={"ListaParlamentarEmExercicio": {"Parlamentares": {"Parlamentar": items}}}
     )

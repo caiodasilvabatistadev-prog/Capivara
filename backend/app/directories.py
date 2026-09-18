@@ -8,6 +8,13 @@ from bs4 import BeautifulSoup
 from fastapi import HTTPException
 
 from app.dashboard import Dashboard, Metric, ReportBlock, ReportSection, clean, text
+from app.details import (
+    add_metric,
+    complete_layout,
+    judicial_curriculum,
+    senate_profile,
+    senate_resources,
+)
 from app.models import Politician
 
 SENATE = "https://legis.senado.leg.br/dadosabertos/senador/lista/atual.json"
@@ -23,33 +30,33 @@ def folded(value: str) -> str:
 
 
 def profile(person: Politician, content: list[str]) -> Dashboard:
-    return Dashboard(
-        politician=person,
-        year=None,
-        fetched_at=datetime.now(UTC),
-        updates=[],
-        metrics=[
-            Metric(
-                label="Cargo",
-                value=person.role,
-                group="Perfil institucional",
-                explanation="Cargo divulgado na fonte oficial.",
-            ),
-            Metric(
-                label="Órgão",
-                value=person.institution,
-                group="Perfil institucional",
-                explanation="Cobertura federal inicial do projeto.",
-            ),
-        ],
-        sections=[
-            ReportSection(
-                title="Perfil e contatos",
-                blocks=[ReportBlock(kind="text", text=line) for line in content],
-            )
-        ],
-        notice="Perfil institucional consultado na fonte oficial. Esta integração não inclui "
-        "gastos, presença, decisões ou indicadores de impacto. Não informado não significa zero.",
+    return complete_layout(
+        Dashboard(
+            politician=person,
+            year=None,
+            fetched_at=datetime.now(UTC),
+            updates=[],
+            metrics=[
+                Metric(
+                    label="Cargo",
+                    value=person.role,
+                    group="Perfil institucional",
+                    explanation="Cargo divulgado na fonte oficial.",
+                ),
+                Metric(
+                    label="Órgão",
+                    value=person.institution,
+                    group="Perfil institucional",
+                    explanation="Cobertura federal inicial do projeto.",
+                ),
+            ],
+            sections=[
+                ReportSection(
+                    title="Perfil e contatos",
+                    blocks=[ReportBlock(kind="text", text=line) for line in content],
+                )
+            ],
+        )
     )
 
 
@@ -78,6 +85,32 @@ class DirectoryProvider(ABC):
 
 
 class SenateProvider(DirectoryProvider):
+    async def get(self, official_id: int) -> Politician:
+        return (await DirectoryProvider.dashboard(self, official_id)).politician
+
+    async def dashboard(self, official_id: int) -> Dashboard:
+        data = await super().dashboard(official_id)
+        year = datetime.now(UTC).year
+        sources = [
+            (data.politician.source_url, senate_profile),
+            (
+                f"https://www6g.senado.leg.br/transparencia/sen/{official_id}/?ano={year}",
+                senate_resources,
+            ),
+        ]
+        source_blocks = []
+        for url, parser in sources:
+            try:
+                response = await self.client.get(url, headers={"Accept": "text/html"})
+                response.raise_for_status()
+                parser(data, response.text)
+                state = "Consultada"
+            except (httpx.HTTPError, ValueError):
+                state = "Indisponível ou estrutura inválida nesta consulta"
+            source_blocks.append(ReportBlock(kind="text", text=state + ": " + url))
+        data.sections.append(ReportSection(title="Fontes e cobertura", blocks=source_blocks))
+        return data
+
     async def listing(self) -> list[Dashboard]:
         response = await self.client.get(SENATE)
         response.raise_for_status()
@@ -162,6 +195,45 @@ class ExecutiveProvider(DirectoryProvider):
             )
         return result
 
+    async def dashboard(self, official_id: int) -> Dashboard:
+        data = await super().dashboard(official_id)
+        contact = data.sections[0].blocks
+        add_metric(
+            data,
+            "Telefone institucional",
+            contact[1].text,
+            "Perfil institucional",
+            "Contato publicado na página oficial da autoridade.",
+        )
+        add_metric(
+            data,
+            "E-mail institucional",
+            contact[2].text,
+            "Perfil institucional",
+            "Contato publicado na página oficial da autoridade.",
+        )
+        data.sections.append(ReportSection(title="Currículo e trajetória", blocks=[contact[3]]))
+        data.sections[0].blocks = contact[:3]
+        data.sections.append(
+            ReportSection(
+                title="Fontes e cobertura",
+                blocks=[
+                    ReportBlock(kind="text", text=data.politician.source_url),
+                    ReportBlock(
+                        kind="text",
+                        text="Currículo e contatos consultados. "
+                        "Agenda do e-Agendas e remuneração do "
+                        "Portal da Transparência exigem integrações autenticadas "
+                        "ainda não configuradas. "
+                        "Orçamento do ministério não é gasto pessoal do ministro. "
+                        "Propostas legislativas "
+                        "e emendas de autoria parlamentar não são indicadores deste cargo.",
+                    ),
+                ],
+            )
+        )
+        return data
+
 
 class JudicialProvider(DirectoryProvider):
     async def listing(self) -> list[Dashboard]:
@@ -214,7 +286,21 @@ class JudicialProvider(DirectoryProvider):
         data.politician.photo_url = (
             urljoin(data.politician.source_url, str(image["src"])) if image else None
         )
-        for node in curriculum.select(".clsMinistrosDiscursoItemDescricao, li, p"):
-            if node.find(["li", "p"]) is None and text(node) != "Não informado":
-                data.sections[0].blocks.append(ReportBlock(kind="text", text=text(node)))
+        data.sections.append(
+            ReportSection(
+                title="Fontes e cobertura",
+                blocks=[
+                    ReportBlock(kind="text", text=data.politician.source_url),
+                    ReportBlock(
+                        kind="text",
+                        text="Currículo oficial consultado. Remuneração, "
+                        "produtividade individual, decisões e "
+                        "agenda não estão integradas. "
+                        "Orçamento do STJ não é gasto pessoal do ministro. "
+                        "Emendas de autoria parlamentar não se aplicam ao cargo.",
+                    ),
+                ],
+            )
+        )
+        judicial_curriculum(data, curriculum)
         return data

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Brand from "../components/Brand";
 import Dashboard from "../components/Dashboard";
+import Rankings from "../components/Rankings";
 import Portrait from "../components/Portrait";
 import { type Politician, type DashboardData, request } from "../lib/api";
 
@@ -75,13 +76,14 @@ export default function Home() {
       {focused && suggestionStatus && <p role="status" className="mt-3 text-sm text-slate-500">{suggestionStatus}</p>}
       <p className="mt-3 text-xs text-slate-500">Digite ao menos 2 letras. Use ↑ ↓ e Enter para escolher uma sugestão.</p>
     </form>
+    {!selected && <Rankings key={provider} provider={provider} onOpen={(source, id) => void load("/politicians/" + source + "/" + id + "/dashboard", true)} />}
     {busy && <p role="status" className="mt-6">Consultando dados oficiais…</p>}
     {error && <p role="alert" className="mt-6 text-red-700">{error}</p>}
     {!selected && results && <section className="mt-10" aria-label="Resultados"><h2 className="mb-4 text-xl font-bold">{results.length} resultado(s)</h2>
       {results.length === 0 && <p>Nenhuma pessoa encontrada nesta fonte.</p>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{results.map(person => <article className="rounded-2xl border bg-white p-6" key={person.provider + "-" + person.id}><p className="mb-3 text-xs uppercase tracking-widest text-slate-500">{person.role || "Deputado federal"}</p><div className="flex items-center gap-3"><Portrait person={person} /><h3 className="text-xl font-bold">{person.name}</h3></div><p className="mt-3 text-sm text-slate-500">{person.institution || "Câmara dos Deputados"}</p><p className="my-3 text-slate-600">{person.party} · {person.state}</p><button className="mt-3 font-bold text-emerald-800" disabled={busy} onClick={() => choose(person)}>Ver dashboard de {person.name}</button></article>)}</div>
     </section>}
-    {selected && <Dashboard data={selected} onBack={() => setSelected(null)} />}
+    {selected && <Dashboard key={selected.politician.provider + selected.politician.id} data={selected} onBack={() => setSelected(null)} />}
     <footer className="mt-16 border-t pt-6 text-sm leading-relaxed text-slate-500">Fontes: Câmara, Senado, Ministérios da Saúde e da Fazenda e STJ. Cobertura federal inicial, sem cadastro completo de autoridades ou confirmação de candidaturas. Nenhuma pesquisa é salva pelo projeto.</footer>
   </main>;
 }

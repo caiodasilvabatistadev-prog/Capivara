@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -15,6 +16,7 @@ from app.editorial import PublicContext, context_for
 from app.models import Politician
 from app.pdf_report import make_pdf
 from app.providers import CamaraProvider, Provider
+from app.rankings import MetricName, Ranking, ranking
 
 
 class Settings(BaseSettings):
@@ -29,6 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         timeout=15,
         headers={"Accept": "application/json"},
     ) as client:
+        app.state.http_client = client
         app.state.providers = {
             "camara": CamaraProvider(client),
             "senado": SenateProvider(client),
@@ -86,6 +89,17 @@ async def search(
     if len(name) < 2:
         raise HTTPException(422, "Informe pelo menos dois caracteres")
     return await provider_for(request, provider).search(name)
+
+
+@app.get("/rankings")
+async def public_rankings(
+    request: Request,
+    provider: str = Query(default="camara", pattern="^(camara|senado|executivo|judiciario)$"),
+    metric: MetricName = "expenses",
+    year: int = Query(default=datetime.now(UTC).year, ge=2024, le=datetime.now(UTC).year),
+) -> Ranking:
+    source = provider_for(request, provider)
+    return await ranking(request.app.state.http_client, source, provider, metric, year)
 
 
 @app.get("/autocomplete")

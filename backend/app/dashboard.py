@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from bs4 import BeautifulSoup, Tag
 from bs4.element import Comment, NavigableString
+from bs4.filter import SoupStrainer
 from pydantic import BaseModel
 
 from app.models import Politician
@@ -88,7 +89,7 @@ def blocks(node: Tag) -> list[ReportBlock]:
 
 
 def parse_dashboard(html: str, politician: Politician) -> Dashboard:
-    soup = BeautifulSoup(html, "html.parser")
+    soup = BeautifulSoup(html, "html.parser", parse_only=SoupStrainer("main"))
     main = soup.select_one("main")
     if not main or not main.select_one(".identificacao-deputado"):
         raise ValueError("Página oficial inválida")

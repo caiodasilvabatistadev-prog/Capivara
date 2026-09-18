@@ -83,3 +83,25 @@ Curadoria inicial em app/editorial.py, versionada no Git: primeiro perfil Sergio
 Estados aceitos: condenação definitiva (exige trânsito em julgado), condenação recorrível, em andamento, absolvido, arquivado, anulado e pedido rejeitado. Todo caso exige tribunal, processo, data e URL oficial .jus.br, além de referência jornalística. Uma improcedência eleitoral não é rotulada como absolvição criminal. Ações distinguem proposta, aprovada e execução documentada; autoria não presume crédito exclusivo nem impacto comprovado.
 
 Para ampliar a cobertura, revisar documentação por perfil e cadastrar fontes, contexto e datas com os mesmos critérios, independentemente de partido; registrar revisões e correções no histórico do Git. Este fluxo é editorial, sem IA inferindo culpa e sem scraping de artigos completos. O PDF inclui os registros e fontes consultados na tela quando a seção foi carregada.
+
+## Dashboards por poder
+
+O mesmo componente apresenta perfil, gastos, atividade, agenda/presença, recursos, emendas e contexto judicial, adaptando os rótulos ao cargo. Campos sem fonte aparecem como não disponíveis; indicadores parlamentares incompatíveis são marcados como não aplicáveis. Não há números fictícios nem imputação de orçamento institucional como gasto pessoal.
+
+Senado: perfil público (dados pessoais, suplentes, comissões, missões e biografia) e prestação de contas do ano corrente (CEAPS por categoria, despesas fora da CEAPS, benefícios e equipe). Mantém tabelas, fontes e datas no PDF. Falha de uma página complementar preserva o perfil e informa a fonte indisponível; não transforma falha em zero. Produção legislativa, votos, presença, emendas, remuneração e detalhamento mensal ainda não estão integrados.
+
+Executivo: currículo, trajetória e contatos da autoridade; áreas comuns de gastos, remuneração, agenda e atuação informam limites. A agenda e-Agendas exige token (documentação CGU: https://github.com/cgugovbr/eagendas-publico/tree/main/api-consulta). Não captura a agenda pela página de filtro, que depende de aplicação dinâmica. Remuneração exige outra integração no Portal da Transparência.
+
+Judiciário: currículo dividido pelas seções oficiais e funções atuais destacadas, incluindo formação e trajetória; mantém o conteúdo completo do currículo consultado. Decisões, produtividade, remuneração e agenda não estão integradas. A cobertura institucional continua sendo STJ, Saúde e Fazenda, além do Senado e Câmara; não inclui todos os órgãos ou todas as autoridades.
+
+## Comparações abaixo da busca
+
+GET /rankings?provider=camara|senado|executivo|judiciario&metric=expenses|absences|approved|party_fund|election_fund&year=2026 retorna fontes, período, cobertura e estados ready/partial/unavailable/not_applicable. UI acompanha o poder/casa selecionado. Consultas são manuais por lista; sem banco, persistência ou cache de pesquisas. Não há nota política.
+
+Gastos: arquivos anuais CEAP (Câmara, coluna vlrLiquido) e CEAPS (Senado, valorReembolsado, IDs duplicados ignorados). Decimais exatos no cálculo. Câmara exclui registros de lideranças sem ideCadastro; inclui registros de pessoas fora de exercício hoje. Não reúne salário, verba de gabinete ou todos os custos; não compara casas. Não aplica ajustes de restituição registrados em outras colunas. Empates têm a mesma posição e a exibição limita-se a dez entradas.
+
+Ausências: consulta perfis da Câmara com concorrência limitada a oito e prazo de 180 segundos, exigindo o ano solicitado e os dois contadores publicados de ausência em Plenário. Soma justificadas e não justificadas, mantendo ambas na descrição; não mistura com comissões, não infere faltas de votos. Dados faltantes e falhas contam como cobertura incompleta, sem zero inventado. Ranking parcial refere-se somente aos perfis consultados. Senado sem fonte de faltas integrada; Executivo/Judiciário exigem outras métricas.
+
+Projetos aprovados: ainda indisponível, até levantar aprovação final e autoria validada no período. Não substitui por projetos apresentados, votações ou requerimentos aprovados.
+
+Fundos: independentes do poder, nacionais. Curadoria dos cinco maiores repasses do Fundo Partidário no balanço TSE de 2025 (dotação + multas), e de todos os 30 valores destinados no FEFC 2026 (não comprova recebimento por candidaturas). Fontes oficiais e data de publicação na resposta; revisão manual em 18/09/2026. A coleta direta do TSE retornou 403 neste ambiente; snapshots não se apresentam como atualização automática e não são extrapolados para outros anos.
