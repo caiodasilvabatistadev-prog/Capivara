@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Brand from "../components/Brand";
+import Header from "../components/Header";
 import Dashboard from "../components/Dashboard";
 import Rankings from "../components/Rankings";
 import Portrait from "../components/Portrait";
@@ -57,9 +57,16 @@ export default function Home() {
   }
   function resetScope() { setResults(null); setSelected(null); setSuggestions([]); setSuggestionStatus(""); setActive(-1); setError(""); }
   function choose(person: Politician, fromSuggestions = false) { if (fromSuggestions) setResults(suggestions); setQuery(person.name); void load("/politicians/" + person.provider + "/" + person.id + "/dashboard", true); }
+  function navigate(section: "consulta" | "rankings" | "fontes") {
+    if (section !== "fontes") setSelected(null);
+    requestAnimationFrame(() => {
+      const target = document.getElementById(section === "consulta" ? "public-search" : section);
+      target?.scrollIntoView?.({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+      if (section === "consulta") target?.focus({ preventScroll: true });
+    });
+  }
   const expanded = focused && !busy && suggestions.length > 0;
-  return <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
-    <header className="mb-10 flex items-center justify-between gap-4"><Brand /><span className="hidden shrink-0 rounded-full border px-3 py-2 text-xs text-slate-500 sm:inline-flex">Consulta federal</span></header>
+  return <><Header onNavigate={navigate} /><main className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
     <p className="mb-3 text-xs font-bold uppercase tracking-widest text-emerald-800">Dados oficiais · Três poderes</p>
     <h1 className="max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">O poder público, mais perto de você.</h1>
     <p className="mt-5 mb-8 max-w-3xl text-lg leading-relaxed text-slate-600">Encontre representantes e autoridades. Leia perfis, acompanhe os dados disponíveis e baixe relatórios sem sair daqui.</p>
@@ -76,7 +83,7 @@ export default function Home() {
       {focused && suggestionStatus && <p role="status" className="mt-3 text-sm text-slate-500">{suggestionStatus}</p>}
       <p className="mt-3 text-xs text-slate-500">Digite ao menos 2 letras. Use ↑ ↓ e Enter para escolher uma sugestão.</p>
     </form>
-    {!selected && <Rankings key={provider} provider={provider} onOpen={(source, id) => void load("/politicians/" + source + "/" + id + "/dashboard", true)} />}
+    {!selected && <div id="rankings"><Rankings key={provider} provider={provider} onOpen={(source, id) => void load("/politicians/" + source + "/" + id + "/dashboard", true)} /></div>}
     {busy && <p role="status" className="mt-6">Consultando dados oficiais…</p>}
     {error && <p role="alert" className="mt-6 text-red-700">{error}</p>}
     {!selected && results && <section className="mt-10" aria-label="Resultados"><h2 className="mb-4 text-xl font-bold">{results.length} resultado(s)</h2>
@@ -84,6 +91,6 @@ export default function Home() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{results.map(person => <article className="rounded-2xl border bg-white p-6" key={person.provider + "-" + person.id}><p className="mb-3 text-xs uppercase tracking-widest text-slate-500">{person.role || "Deputado federal"}</p><div className="flex items-center gap-3"><Portrait person={person} /><h3 className="text-xl font-bold">{person.name}</h3></div><p className="mt-3 text-sm text-slate-500">{person.institution || "Câmara dos Deputados"}</p><p className="my-3 text-slate-600">{person.party} · {person.state}</p><button className="mt-3 font-bold text-emerald-800" disabled={busy} onClick={() => choose(person)}>Ver dashboard de {person.name}</button></article>)}</div>
     </section>}
     {selected && <Dashboard key={selected.politician.provider + selected.politician.id} data={selected} onBack={() => setSelected(null)} />}
-    <footer className="mt-16 border-t pt-6 text-sm leading-relaxed text-slate-500">Fontes: Câmara, Senado, Ministérios da Saúde e da Fazenda e STJ. Cobertura federal inicial, sem cadastro completo de autoridades ou confirmação de candidaturas. Nenhuma pesquisa é salva pelo projeto.</footer>
-  </main>;
+    <footer id="fontes" tabIndex={-1} className="mt-16 border-t pt-6 text-sm leading-relaxed text-slate-500">Fontes: Câmara, Senado, Ministérios da Saúde e da Fazenda e STJ. Cobertura federal inicial, sem cadastro completo de autoridades ou confirmação de candidaturas. Nenhuma pesquisa é salva pelo projeto.</footer>
+  </main></>;
 }
