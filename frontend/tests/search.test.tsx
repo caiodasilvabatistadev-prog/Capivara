@@ -4,7 +4,7 @@ import { expect, test, vi } from "vitest";
 import Home from "../app/page";
 import { dashboard, person } from "./fixtures";
 
-const response = (value: unknown) => ({ ok: true, json: async () => value });
+const response = (value: unknown) => ({ ok: true, json: async () => Array.isArray(value) ? { items: value, sources: [] } : value });
 
 test("sugestões aceitam teclado e abrem perfil sem sair do projeto", async () => {
   const fetch = vi.fn(async (url: string) => response(url.includes("/autocomplete") ? [person] : dashboard));
@@ -23,7 +23,7 @@ test("sugestões aceitam teclado e abrem perfil sem sair do projeto", async () =
   await screen.findByRole("region", { name: "Perfil" });
   expect(fetch.mock.calls.find(call => String(call[0]).endsWith("/dashboard"))?.[0]).toContain("/politicians/camara/1/dashboard");
   await user.click(screen.getByRole("button", { name: "Voltar aos resultados" }));
-  expect(screen.getByRole("button", { name: "Ver dashboard de Maria" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Puxar a capivara de Maria" })).toBeVisible();
 });
 
 test("resposta antiga não substitui sugestões de uma busca nova", async () => {
@@ -40,18 +40,16 @@ test("resposta antiga não substitui sugestões de uma busca nova", async () => 
   expect(screen.queryByText("Nome antigo")).not.toBeInTheDocument();
 });
 
-test.each(["Executivo", "Judiciário", "Senado"])("consulta a fonte selecionada: %s", async scope => {
+test.each(["Executivo", "Judiciário", "Senado"])("busca unificada abre o perfil identificado: %s", async scope => {
   const provider = scope === "Executivo" ? "executivo" : scope === "Judiciário" ? "judiciario" : "senado";
   const authority = { ...person, provider, role: "Autoridade", institution: "Órgão oficial" };
-  const fetch = vi.fn(async (url: string) => response(url.includes("/dashboard") ? { ...dashboard, politician: authority } : [authority]));
+  const fetch = vi.fn(async (url: string) => response(url.endsWith("/news") ? [] : url.includes("/dashboard") ? { ...dashboard, politician: authority } : [authority]));
   vi.stubGlobal("fetch", fetch);
   render(<Home />); const user = userEvent.setup();
-  if (scope === "Senado") await user.selectOptions(screen.getByRole("combobox", { name: "Casa legislativa" }), "senado");
-  else await user.click(screen.getByRole("button", { name: scope }));
   await user.type(screen.getByRole("combobox", { name: "Nome da pessoa" }), "Ma");
   await user.click(await screen.findByRole("option", { name: /Maria/ }));
   await screen.findByRole("region", { name: "Perfil" });
-  expect(fetch.mock.calls[0][0]).toContain("provider=" + provider);
+  expect(fetch.mock.calls[0][0]).toContain("/autocomplete/all?q=");
   expect(fetch.mock.calls.find(call => String(call[0]).endsWith("/dashboard"))?.[0]).toContain("/politicians/" + provider + "/1/dashboard");
   expect(screen.getByText("Dados oficiais consultados no órgão: Órgão oficial.")).toBeVisible();
 });
@@ -73,7 +71,7 @@ test("falha nas sugestões mantém a busca manual disponível", async () => {
   await user.type(screen.getByRole("combobox", { name: "Nome da pessoa" }), "Maria");
   await screen.findByText("Sugestões indisponíveis. Tente o botão Buscar.");
   await user.click(screen.getByRole("button", { name: "Buscar" }));
-  expect(await screen.findByRole("button", { name: "Ver dashboard de Maria" })).toBeVisible();
+  expect(await screen.findByRole("button", { name: "Puxar a capivara de Maria" })).toBeVisible();
 });
 
 
@@ -89,3 +87,4 @@ test("PDF de outro poder usa nome de perfil e mantém os dados exibidos", async 
   expect(click).toHaveBeenCalledOnce();
   expect(fetch).toHaveBeenCalledWith("http://localhost:8000/reports/pdf", expect.objectContaining({ body: JSON.stringify(snapshot) }));
 });
+

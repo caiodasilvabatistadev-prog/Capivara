@@ -1,3 +1,5 @@
+export type SearchSource = { provider: string; name: string; available: boolean; matches: number };
+export type SearchResult = { items: Politician[]; sources: SearchSource[] };
 export type Politician = {
   id: number; provider: string; name: string; party: string; state: string;
   role?: string; institution?: string; power?: string;
@@ -13,6 +15,13 @@ export const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${api}${path}`, { cache: "no-store", ...(signal ? { signal } : {}) });
   if (!response.ok) throw new Error("Não foi possível consultar os dados oficiais. Tente novamente.");
+  return response.json();
+}
+export async function post<T>(path: string, data: unknown): Promise<T> {
+  const response = await fetch(`${api}${path}`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error("Não foi possível concluir a inscrição. Tente novamente.");
   return response.json();
 }
 export async function downloadPdf(data: DashboardData) {

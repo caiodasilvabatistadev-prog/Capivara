@@ -129,3 +129,31 @@ def test_pdf_download_and_cors(client):
         },
     )
     assert preflight.status_code == 200
+
+
+def test_pdf_long_voting_context_can_continue_between_pages():
+    data = parse_dashboard(HTML, PERSON)
+    from app.dashboard import ReportBlock, ReportSection
+
+    data.sections.append(
+        ReportSection(
+            title="Votos individuais",
+            blocks=[
+                ReportBlock(
+                    kind="table",
+                    text="Contexto oficial integral",
+                    rows=[
+                        ["Data", "Objeto", "Contexto", "Voto", "Fonte"],
+                        [
+                            "2026-09-03",
+                            "Destaque votado",
+                            "Contexto extenso publicado. " * 250,
+                            "Sem voto registrado",
+                            "https://example.com/oficial",
+                        ],
+                    ],
+                )
+            ],
+        )
+    )
+    assert make_pdf(data).startswith(b"%PDF-")

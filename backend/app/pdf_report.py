@@ -81,9 +81,22 @@ def make_pdf(data: Dashboard) -> bytes:
             if block.kind == "table":
                 caption = paragraph(block.text, "Heading2")
                 count = max(len(row) for row in block.rows)
+                if count >= 5:
+                    story.append(caption)
+                    headers = block.rows[0] + ["Campo"] * (count - len(block.rows[0]))
+                    for number, row in enumerate(block.rows[1:], start=1):
+                        story.append(paragraph(f"Registro {number}", "Heading2"))
+                        for index, cell in enumerate(row):
+                            story.append(paragraph(f"{headers[index]}: {cell}"))
+                        story.append(Spacer(1, 4 * mm))
+                    continue
                 rows = [[paragraph(cell, "SmallReport") for cell in row] for row in block.rows]
                 table = Table(
-                    rows, colWidths=[174 * mm / count] * count, repeatRows=1, hAlign="LEFT"
+                    rows,
+                    colWidths=[168 * mm / count] * count,
+                    repeatRows=1,
+                    splitInRow=1,
+                    hAlign="LEFT",
                 )
                 table.setStyle(
                     TableStyle(
@@ -113,7 +126,7 @@ def make_pdf(data: Dashboard) -> bytes:
             paragraph("Fonte e limites do relatório", "Heading1"),
             paragraph(data.politician.source_url, "SmallReport"),
             paragraph(
-                "Relatório dos dados presentes na dashboard e nas fontes indicadas em suas seções. "
+                "Relatório dos dados presentes na capivara e nas fontes indicadas em suas seções. "
                 "Não inclui o conteúdo de páginas vinculadas, vídeos ou áudios. "
                 "Emendas autorizadas, empenhadas e pagas são etapas diferentes; "
                 "esses valores não devem ser somados.",

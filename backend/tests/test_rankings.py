@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 import app.rankings as module
 from app.main import app
 from app.models import Politician
-from app.rankings import Entry, Ranking, absences, chamber_expenses, ordered
+from app.rankings import Entry, Ranking, absences, amendment_ranking, chamber_expenses, ordered
 
 
 def archive(csv_text, year=2026):
@@ -77,6 +77,7 @@ def test_rankings_endpoint_sources_and_limits():
         a = client.get("/rankings?metric=expenses&provider=camara&year=2026").json()
         b = client.get("/rankings?metric=expenses&provider=senado&year=2026").json()
         assert a["entries"][0]["value"] == "0.30"
+        assert a["entries"][0]["photo_url"].endswith("/2.jpg")
         assert a["covered"] == 2
         assert b["entries"][0]["value"] == "0.3"
         assert b["covered"] == 1
@@ -90,10 +91,13 @@ def test_rankings_endpoint_sources_and_limits():
         for query in ["provider=other", "metric=other", "year=2020", "year=2100"]:
             assert client.get("/rankings?" + query).status_code == 422
         for provider in ["executivo", "judiciario"]:
-            for metric in ["expenses", "approved", "absences"]:
+            for metric in ["expenses", "approved", "absences", "amendments"]:
                 data = client.get(f"/rankings?provider={provider}&metric={metric}").json()
                 assert data["status"] == "not_applicable" and data["entries"] == []
         assert client.get("/rankings?metric=approved").json()["status"] == "unavailable"
+        amendments = client.get("/rankings?metric=amendments").json()
+        assert amendments["status"] == "unavailable"
+        assert "chave" in amendments["notice"]
         assert client.get("/rankings?metric=absences&year=2024").json()["status"] == "unavailable"
         assert (
             client.get("/rankings?provider=senado&metric=absences").json()["status"]
@@ -124,6 +128,7 @@ def test_current_chamber_absences_and_partial_coverage():
         data = client.get(f"/rankings?metric=absences&year={year}").json()
         assert data["entries"][0]["value"] == "5"
         assert data["entries"][0]["detail"] == "2 justificadas · 3 não justificadas"
+        assert data["entries"][0]["photo_url"] is None
         assert data["covered"] == data["total"] == 1 and data["status"] == "ready"
         listing.respond(
             200,
@@ -161,3 +166,36 @@ async def test_absence_timeout_preserves_coverage_metadata(monkeypatch):
     async with httpx.AsyncClient() as client:
         result = await absences(client, [person], data)
     assert result.covered == 0 and result.total == 1 and result.entries == []
+
+
+@respx.mock
+async def test_amendment_ranking_uses_individual_committed_values():
+    data = Ranking(provider="camara", metric="amendments", year=2026, title="Emendas", notice="")
+    route = respx.get(module.TRANSPARENCY_API)
+    route.side_effect = [
+        httpx.Response(
+            200,
+            json=[
+                {
+                    "tipoEmenda": "Emenda Individual",
+                    "nomeAutor": "Maria",
+                    "valorEmpenhado": "1.234,50",
+                },
+                {
+                    "tipoEmenda": "Emenda de Bancada",
+                    "nomeAutor": "Bancada",
+                    "valorEmpenhado": "999",
+                },
+                {"tipoEmenda": "Emenda Individual", "autor": "João", "valorEmpenhado": "100"},
+                {"tipoEmenda": "Emenda Individual", "nomeAutor": "", "valorEmpenhado": "100"},
+            ],
+        ),
+        httpx.Response(200, json=[]),
+    ]
+    async with httpx.AsyncClient() as client:
+        result = await amendment_ranking(client, 2026, "token", data)
+    assert [entry.name for entry in result.entries] == ["Maria", "João"]
+    assert result.entries[0].value == Decimal("1234.50")
+    assert result.status == "ready" and result.covered == 2
+    empty = Ranking(provider="camara", metric="amendments", year=2026, title="Emendas", notice="")
+    assert (await amendment_ranking(httpx.AsyncClient(), 2026, "", empty)).status == "unavailable"

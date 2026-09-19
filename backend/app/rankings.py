@@ -14,17 +14,28 @@ from starlette.concurrency import run_in_threadpool
 
 from app.dashboard import parse_dashboard
 from app.models import Politician
+from app.parties import PARTIES, Party
 from app.providers import Provider
 
-MetricName = Literal["expenses", "absences", "approved", "party_fund", "election_fund"]
+MetricName = Literal[
+    "expenses",
+    "absences",
+    "approved",
+    "amendments",
+    "party_fund",
+    "election_fund",
+]
+TRANSPARENCY_API = "https://api.portaldatransparencia.gov.br/api-de-dados/emendas"
 TSE_PARTY = "https://www.tse.jus.br/comunicacao/noticias/2026/Janeiro/fundo-partidario-19-partidos-receberam-mais-de-r-1-bilhao-em-2025"
 TSE_ELECTION = "https://www.tse.jus.br/eleicoes/eleicoes-2026-content/prestacao-de-contas/distribuicao-dos-recursos-do-fundo-especial-de-financiamento-de-campanha-fefc-eleicoes-2026"
 
 
 class Entry(BaseModel):
+    party: Party | None = None
     position: int = 0
     id: int | None = None
     name: str
+    photo_url: str | None = None
     value: Decimal
     detail: str = ""
 
@@ -182,6 +193,8 @@ def party_snapshot(metric: MetricName, year: int) -> Ranking:
             "Recorte nacional, independente do poder; revisão manual em 18/09/2026."
         )
         data.covered, data.total, data.status = 30, 30, "ready"
+    for entry in data.entries:
+        entry.party = PARTIES.get(entry.name)
     return data
 
 
@@ -204,6 +217,7 @@ async def absences(client: httpx.AsyncClient, people: list[Politician], data: Ra
                     Entry(
                         id=person.id,
                         name=person.name,
+                        photo_url=person.photo_url,
                         value=Decimal(justified + other),
                         detail=f"{justified} justificadas · {other} não justificadas",
                     )
@@ -231,8 +245,67 @@ async def absences(client: httpx.AsyncClient, people: list[Politician], data: Ra
     return data
 
 
+async def amendment_ranking(
+    client: httpx.AsyncClient, year: int, api_key: str, data: Ranking
+) -> Ranking:
+    if not api_key:
+        data.notice = (
+            "A integração está pronta, mas a chave da API do Portal da Transparência "
+            "ainda não foi configurada no servidor."
+        )
+        return data
+    totals: dict[str, Decimal] = defaultdict(Decimal)
+    counts: dict[str, int] = defaultdict(int)
+    for page in range(1, 301):  # pragma: no branch - API encerra com uma página vazia
+        response = await client.get(
+            TRANSPARENCY_API,
+            params={"ano": year, "pagina": page},
+            headers={"chave-api-dados": api_key, "Accept": "application/json"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        rows = response.json()
+        if not rows:
+            break
+        for row in rows:
+            if "individual" not in str(row.get("tipoEmenda", "")).casefold():
+                continue
+            name = str(row.get("nomeAutor") or row.get("autor") or "").strip()
+            if not name:
+                continue
+            value = Decimal(
+                str(row.get("valorEmpenhado") or "0").replace(".", "").replace(",", ".")
+            )
+            totals[name] += value
+            counts[name] += 1
+    entries = [
+        Entry(
+            name=name,
+            value=value,
+            detail=f"{counts[name]} emenda(s) individual(is) com valor empenhado",
+        )
+        for name, value in totals.items()
+    ]
+    data.entries = ordered(entries)
+    data.covered = len(entries)
+    data.status = "ready" if entries else "unavailable"
+    data.source_url = f"https://portaldatransparencia.gov.br/emendas?ano={year}"
+    data.notice = (
+        "Soma do valor empenhado de emendas individuais por autor no ano selecionado. "
+        "Empenho é a reserva formal do recurso e não significa que o dinheiro foi pago. "
+        "Emendas de bancada, comissão e relator não entram nesta comparação individual."
+    )
+    data.fetched_at = datetime.now(UTC)
+    return data
+
+
 async def ranking(
-    client: httpx.AsyncClient, provider: Provider, scope: str, metric: MetricName, year: int
+    client: httpx.AsyncClient,
+    provider: Provider,
+    scope: str,
+    metric: MetricName,
+    year: int,
+    transparency_api_key: str = "",
 ) -> Ranking:
     if metric in {"party_fund", "election_fund"}:
         return party_snapshot(metric, year)
@@ -244,8 +317,13 @@ async def ranking(
             "expenses": "Maiores gastos com cota parlamentar",
             "absences": "Maiores ausências em Plenário",
             "approved": "Projetos aprovados",
+            "amendments": "Maiores valores empenhados em emendas individuais",
         }[metric],
-        unit="BRL" if metric == "expenses" else "dias" if metric == "absences" else "projetos",
+        unit="BRL"
+        if metric in {"expenses", "amendments"}
+        else "dias"
+        if metric == "absences"
+        else "projetos",
         notice="Fonte comparável ainda não integrada para este recorte.",
     )
     if scope not in {"camara", "senado"}:
@@ -256,6 +334,8 @@ async def ranking(
             "Não comparamos orçamento do órgão com gasto pessoal."
         )
         return data
+    if metric == "amendments":
+        return await amendment_ranking(client, year, transparency_api_key, data)
     if metric == "approved":
         data.notice = (
             "Ainda sem levantamento validado de projetos e autores com aprovação "
@@ -292,6 +372,9 @@ async def ranking(
     else:
         response.encoding = "utf-8"
         entries = senate_expenses(response.json(), year)
+    if scope == "camara":
+        for entry in entries:
+            entry.photo_url = f"https://www.camara.leg.br/internet/deputado/bandep/{entry.id}.jpg"
     data.entries, data.covered = ordered(entries), len(entries)
     data.status = "ready" if entries else "unavailable"
     data.source_url = url
