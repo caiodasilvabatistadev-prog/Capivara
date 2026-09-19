@@ -9,7 +9,7 @@ test("busca única distingue poderes e abre dashboard de governador com PDF", as
   await page.route("**/politicians/governadores/35/dashboard", route => route.fulfill({ json: { ...dashboard, politician: governor } }));
   await page.route("**/politicians/governadores/35/news", route => route.fulfill({ json: { items: [], notice: "Fixture", fetched_at: "2026-09-18" } }));
   await page.route("**/reports/pdf", route => route.fulfill({ body: "%PDF-1.4\nFixture", headers: { "Content-Type": "application/pdf", "Access-Control-Allow-Origin": "http://localhost:3000" } }));
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("combobox", { name: "Casa legislativa" })).toHaveCount(0);
   await page.getByRole("combobox", { name: "Nome da pessoa" }).fill("Maria");
   await expect(page.getByRole("option", { name: /Maria Governo/ })).toContainText("Governadora · ABC · Executivo");
@@ -23,7 +23,7 @@ test("busca única distingue poderes e abre dashboard de governador com PDF", as
 });
 
 test("guia explica cargos, mandatos e votos e retorna à busca", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Como funciona", exact: true }).click();
   await expect(page).toHaveURL(/\/como-funciona$/);
   await expect(page.getByRole("heading", { name: "Como a política funciona", exact: true })).toBeVisible();
@@ -33,4 +33,6 @@ test("guia explica cargos, mandatos e votos e retorna à busca", async ({ page }
   await page.getByRole("button", { name: "Consulta", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Nome da pessoa" })).toBeVisible();
 });
+
+
 
