@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Header from "../components/Header";
 import Dashboard from "../components/Dashboard";
@@ -20,6 +20,17 @@ export default function Home() {
   const [focused, setFocused] = useState(false);
   const [active, setActive] = useState(-1);
   const [suggestionStatus, setSuggestionStatus] = useState("");
+  const initialProfileLoaded = useRef(false);
+  useEffect(() => {
+    if (initialProfileLoaded.current) return;
+    initialProfileLoaded.current = true;
+    const parameters = new URLSearchParams(window.location.search);
+    const provider = parameters.get("provider");
+    const id = parameters.get("id");
+    if (provider && id && /^\d+$/.test(id)) {
+      void load(`/politicians/${encodeURIComponent(provider)}/${id}/dashboard`, true);
+    }
+  }, []);
   useEffect(() => {
     if (!focused || busy || query.trim().length < 2) return;
     const controller = new AbortController();

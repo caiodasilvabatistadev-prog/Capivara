@@ -3,7 +3,7 @@ import { person, dashboard } from "../tests/fixtures";
 test("dashboard, PDF e detalhes permanecem no projeto", async ({ page }) => {
   await page.route("**/search/all?q=*", route => route.fulfill({ json: { items: [person], sources: [] } }));
   await page.route("**/politicians/camara/1/dashboard", route => route.fulfill({ json: dashboard }));
-  await page.route("**/reports/pdf", route => route.fulfill({ body: "%PDF-1.4\nReport", headers: { "Content-Type": "application/pdf", "Access-Control-Allow-Origin": "http://localhost:3000", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST,OPTIONS" } }));
+  await page.route("**/reports/pdf", route => route.fulfill({ body: "%PDF-1.4\nReport", headers: { "Content-Type": "application/pdf", "Access-Control-Allow-Origin": "http://localhost:3100", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST,OPTIONS" } }));
   await page.addInitScript(() => { window.print = () => { document.body.dataset.printed = "true"; }; });
   await page.goto("/", { waitUntil: "domcontentloaded" }); await page.getByRole("combobox", { name: "Nome da pessoa" }).fill("Maria"); await page.getByRole("button", { name: "Buscar", exact: true }).click();
   await page.getByRole("button", { name: "Puxar a capivara de Maria" }).click();
@@ -49,7 +49,7 @@ test("estado judicial e fontes seguem para o PDF sem sair do projeto", async ({ 
       expect(payload).toContain("Estado na data: 21/05/2024");
       expect(payload).toContain(source.url);
     }
-    await route.fulfill({ body: "%PDF-1.4\nReport", headers: { "Content-Type": "application/pdf", "Access-Control-Allow-Origin": "http://localhost:3000", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST,OPTIONS" } });
+    await route.fulfill({ body: "%PDF-1.4\nReport", headers: { "Content-Type": "application/pdf", "Access-Control-Allow-Origin": "http://localhost:3100", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST,OPTIONS" } });
   });
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.getByRole("combobox", { name: "Nome da pessoa" }).fill("Maria");
@@ -74,7 +74,7 @@ test("rankings por poder abrem a dashboard dentro do produto", async ({ page }) 
     return route.fulfill({ json: { provider: "camara", metric: "expenses", year: 2026, status: "partial", title: "Gastos", unit: "BRL", notice: "Somente cota parlamentar.", source_url: "https://example.com/fonte", source_as_of: null, covered: 1, total: 2, entries: [{ position: 1, id: 1, name: "Maria", value: "1234.56", detail: "Dado de teste" }] } });
   });
   await page.route("**/politicians/camara/1/dashboard", route => route.fulfill({ json: dashboard }));
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/rankings", { waitUntil: "domcontentloaded" });
   const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Maiores gastos com cota parlamentar" }) });
   await card.getByRole("button", { name: "Consultar comparação" }).click();
   await expect(card.getByText(/Cobertura parcial: 1 de 2/)).toBeVisible();
@@ -83,7 +83,7 @@ test("rankings por poder abrem a dashboard dentro do produto", async ({ page }) 
   await card.getByRole("button", { name: "Puxar a capivara de Maria" }).click();
   await expect(page.getByRole("region", { name: "Perfil", exact: true })).toBeVisible();
   await expect(page.getByRole("link")).toHaveCount(0);
-  await expect(page).toHaveURL("http://localhost:3100/");
+  await expect(page).toHaveURL("http://localhost:3100/?provider=camara&id=1");
 });
 
 test("notícias são buscadas ao abrir perfil e não viram situação judicial", async ({ page }) => {
@@ -102,6 +102,7 @@ test("notícias são buscadas ao abrir perfil e não viram situação judicial",
   await expect(page.getByRole("link")).toHaveCount(0);
   await expect(page).toHaveURL("http://localhost:3100/");
 });
+
 
 
 

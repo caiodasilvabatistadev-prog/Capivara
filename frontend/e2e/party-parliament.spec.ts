@@ -4,13 +4,13 @@ import { person, dashboard } from "../tests/fixtures";
 test("presidente abre perfil interno do partido com logo", async ({ page }) => {
   await page.route("**/rankings?**", route => route.fulfill({ json: { provider: "nacional", metric: "party_fund", year: 2025, status: "ready", title: "Fundo", unit: "BRL", notice: "Fonte TSE", source_url: "", source_as_of: null, covered: 1, total: 1, entries: [{ position: 1, id: null, name: "PL", value: "100", detail: "Repasses", party: { id: 22, president: "Valdemar Costa Neto", logo_url: "/parties/22.png", reviewed_at: "2026-09-18" } }] } }));
   await page.route("**/politicians/partidos/22/dashboard", route => route.fulfill({ json: { ...dashboard, politician: { ...person, provider: "partidos", id: 22, name: "Valdemar Costa Neto", role: "Presidente nacional de partido", institution: "TSE" } } }));
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/rankings", { waitUntil: "domcontentloaded" });
   const card = page.getByRole("heading", { name: "Fundo Partidário — maiores repasses" }).locator("..");
   await card.getByRole("button", { name: "Consultar comparação" }).click();
   await expect(card.locator(".party-logo img")).toHaveCount(1);
   await card.getByRole("link", { name: "Valdemar Costa Neto" }).click();
-  await expect(page.getByRole("heading", { name: "Valdemar Costa Neto" })).toBeVisible();
-  await expect(page).toHaveURL("http://localhost:3100/");
+  await expect(page.getByRole("heading", { name: "Valdemar Costa Neto", exact: true })).toBeVisible();
+  await expect(page).toHaveURL("http://localhost:3100/?provider=partidos&id=22");
 });
 
 test("emendas e voto entram no PDF e consulta antiga sai ao mudar período", async ({ page }) => {
@@ -24,19 +24,20 @@ test("emendas e voto entram no PDF e consulta antiga sai ao mudar período", asy
   let exported: unknown = null;
   await page.route("**/reports/pdf", async route => {
     if (route.request().method() === "POST") exported = route.request().postDataJSON();
-    await route.fulfill({ body: "%PDF-1.4\nReport", headers: { "Content-Type": "application/pdf", "Access-Control-Allow-Origin": "http://localhost:3000", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST,OPTIONS" } });
+    await route.fulfill({ body: "%PDF-1.4\nReport", headers: { "Content-Type": "application/pdf", "Access-Control-Allow-Origin": "http://localhost:3100", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST,OPTIONS" } });
   });
   await page.goto("/", { waitUntil: "domcontentloaded" }); await page.getByRole("combobox", { name: "Nome da pessoa" }).fill("Maria"); await page.getByRole("button", { name: "Buscar", exact: true }).click(); await page.getByRole("button", { name: "Puxar a capivara de Maria" }).click();
   await page.getByRole("button", { name: "Consultar emendas e Emendas Pix" }).click();
   await expect(page.getByText("Atenção básica em SP")).toBeVisible();
   await page.getByRole("button", { name: "Consultar votos individuais" }).click();
-  await expect(page.getByText("Voto registrado: Não — contra o objeto votado")).toBeVisible();
+  await expect(page.getByText("Como votou: Não — contra o objeto votado")).toBeVisible();
   let pending = page.waitForEvent("download"); await page.getByRole("button", { name: "Baixar PDF completo" }).click(); await pending;
   expect(JSON.stringify(exported)).toContain("Destinos das emendas"); expect(JSON.stringify(exported)).toContain("Votos e assuntos em Plenário");
   await page.getByRole("combobox", { name: "Ano das emendas" }).selectOption("2025");
   pending = page.waitForEvent("download"); await page.getByRole("button", { name: "Baixar PDF completo" }).click(); await pending;
   expect(JSON.stringify(exported)).not.toContain("Destinos das emendas"); expect(JSON.stringify(exported)).toContain("Votos e assuntos em Plenário");
 });
+
 
 
 

@@ -40,7 +40,7 @@ export default function Dashboard({ data, onBack }: { data: DashboardData; onBac
   const person = data.politician;
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => { title.current?.focus(); }, [data]);
-  const groupPriority = ["Gastos públicos", "Recursos públicos", "Presença", "Atividade legislativa", "Propostas legislativas", "Votações", "Discursos", "Equipe"];
+  const groupPriority = ["Gastos públicos", "Recursos públicos", "Equipe", "Atividade legislativa", "Propostas legislativas", "Votações", "Discursos", "Presença"];
   const groups = [...new Set(data.metrics.map(metric => metric.group))].sort((a, b) => {
     const first = groupPriority.indexOf(a); const second = groupPriority.indexOf(b);
     return (first < 0 ? 999 : first) - (second < 0 ? 999 : second);
@@ -49,6 +49,13 @@ export default function Dashboard({ data, onBack }: { data: DashboardData; onBac
   const months = (monthly?.rows.slice(1) || []).map(row => ({ month: row[0], label: row[1], amount: Number(row[1]?.replaceAll(".", "").replace(",", ".")) })).filter(row => Number.isFinite(row.amount));
   const maximum = Math.max(1, ...months.map(row => row.amount));
   const amendments = data.sections.flatMap(section => section.blocks).filter(block => block.kind === "table" && block.text.startsWith("Emenda: "));
+  const financialGroups = groups.filter(group => ["Gastos públicos", "Recursos públicos", "Equipe"].includes(group));
+  const legislativeGroups = groups.filter(group => ["Atividade legislativa", "Propostas legislativas", "Votações", "Discursos"].includes(group));
+  const attendanceGroups = groups.filter(group => group === "Presença");
+  const remainingGroups = groups.filter(group => ![...financialGroups, ...legislativeGroups, ...attendanceGroups].includes(group));
+  function renderGroup(group: string) {
+    return <div key={group}><section aria-label={group} className="mb-10"><h3 className="mb-4 text-xl font-bold">{group}</h3><div className={`grid gap-4 sm:grid-cols-2 ${group === "Gastos públicos" ? "" : "lg:grid-cols-3"}`}>{data.metrics.filter(metric => metric.group === group).map(metric => { const label = labels[metric.label] || metric.label; return <article className="rounded-2xl border bg-white p-5" key={metric.label}><h4 className="mb-3 text-sm font-semibold text-slate-600"><GlossaryTerm term={label}>{label}</GlossaryTerm></h4><p className={"break-words font-bold tracking-tight text-emerald-950 " + (metric.value.length > 80 ? "text-base leading-relaxed" : "text-2xl")}>{metric.value.replace(/^1 dias$/, "1 dia").replace(/^1 reuniões$/, "1 reunião")}</p><p className="mt-3 text-xs leading-relaxed text-slate-500">{metric.explanation}</p></article>; })}</div></section>{group === "Atividade legislativa" && <Proposals person={person} initialYear={data.year} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} />}</div>;
+  }
   async function exportPdf() {
     setExporting(true); setError("");
     try { await downloadPdf({ ...data, sections: [...data.sections, ...parliament, ...(context ? [{ title: "Notícias e situação judicial", blocks: contextBlocks(context) }] : [])] }); } catch (error) { setError((error as Error).message); }
@@ -70,14 +77,17 @@ export default function Dashboard({ data, onBack }: { data: DashboardData; onBac
     <div className="my-5 flex flex-wrap justify-between gap-2 text-sm text-slate-600"><p>Período dos indicadores: <strong>{data.year || "Não informado"}</strong></p><p>Consulta: {new Date(data.fetched_at).toLocaleString("pt-BR")}</p></div>
     <p className="mb-8 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-950">{data.notice}</p>
     <Biography person={person} />
-    <Career person={person} />
     <Assets person={person} />
-    <PoliticalFamily person={person} />
-    <ParliamentRecords person={person} show="amendments" onClear={title => setParliament(old => old.filter(item => item.title !== title))} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} />
-    {groups.map(group => <div key={group}><section aria-label={group} className="mb-10"><h3 className="mb-4 text-xl font-bold">{group}</h3><div className={`grid gap-4 sm:grid-cols-2 ${group === "Gastos públicos" ? "" : "lg:grid-cols-3"}`}>{data.metrics.filter(metric => metric.group === group).map(metric => { const label = labels[metric.label] || metric.label; return <article className="rounded-2xl border bg-white p-5" key={metric.label}><h4 className="mb-3 text-sm font-semibold text-slate-600"><GlossaryTerm term={label}>{label}</GlossaryTerm></h4><p className={"break-words font-bold tracking-tight text-emerald-950 " + (metric.value.length > 80 ? "text-base leading-relaxed" : "text-2xl")}>{metric.value.replace(/^1 dias$/, "1 dia").replace(/^1 reuniões$/, "1 reunião")}</p><p className="mt-3 text-xs leading-relaxed text-slate-500">{metric.explanation}</p></article>; })}</div></section>{group === "Atividade legislativa" && <Proposals person={person} initialYear={data.year} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} />}</div>)}
+    {financialGroups.map(renderGroup)}
     {months.length > 0 && <section aria-label="Gasto mensal" className="mb-10 rounded-2xl border bg-white p-6"><h3 className="text-xl font-bold">Cota parlamentar por mês</h3><p className="mb-6 mt-2 text-sm text-slate-500">Valores publicados por {person.institution || "Câmara dos Deputados"}. As barras comparam os meses, sem indicar limite de gastos.</p><div className="space-y-4">{months.map(row => <div className="grid grid-cols-[2.5rem_1fr_8rem] items-center gap-3 text-sm" key={row.month}><span>{row.month}</span><div aria-hidden="true" className="h-3 rounded-full bg-emerald-50"><div className="h-3 rounded-full bg-emerald-700" style={{ width: `${100 * row.amount / maximum}%` }} /></div><span className="text-right font-medium">R$ {row.label}</span></div>)}</div></section>}
     {amendments.length > 0 && <section aria-label="Emendas para a população" className="mb-10"><h3 className="text-xl font-bold">Emendas para estados e municípios</h3><p className="mb-5 mt-2 text-sm text-slate-600">Destinações destacadas na página oficial. Autorizado é previsão no orçamento; empenhado é reservado; pago é transferido. Não somamos essas etapas.</p><div className="grid gap-4 lg:grid-cols-3">{amendments.map(block => <article className="rounded-2xl border bg-white p-5" key={block.text}><h4 className="mb-5 font-semibold leading-relaxed">{block.text.slice(8)}</h4><dl className="space-y-3">{block.rows.slice(1).map((row, i) => <div className="flex flex-wrap justify-between gap-2 text-sm" key={i}><dt className="text-slate-500">{row[0]}</dt><dd className="font-bold">{row[1]}</dd></div>)}</dl></article>)}</div></section>}
+    <ParliamentRecords person={person} show="amendments" onClear={title => setParliament(old => old.filter(item => item.title !== title))} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} />
+    {legislativeGroups.map(renderGroup)}
     <ParliamentRecords person={person} show="votes" onClear={title => setParliament(old => old.filter(item => item.title !== title))} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} />
+    {attendanceGroups.map(renderGroup)}
+    <Career person={person} />
+    <PoliticalFamily person={person} />
+    {remainingGroups.map(renderGroup)}
     <PublicContext key={person.provider + "-" + person.id} person={person} onLoaded={setContext} />
     <News key={"news-" + person.provider + "-" + person.id} person={person} />
     <Newsletter person={person} />
