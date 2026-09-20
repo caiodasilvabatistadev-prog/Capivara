@@ -17,7 +17,7 @@ test("mostra biografia complementar com aviso e fonte dentro do projeto", async 
     }),
   }));
   render(<Biography person={{ ...person, photo_url: "https://example.com/maria.jpg" }} />);
-  expect(await screen.findByText(/iniciou sua trajetória/)).toBeVisible();
+  expect(await screen.findByText(/iniciou sua trajetória/)).toHaveClass("text-slate-100");
   expect(screen.getByText("Conteúdo comunitário.")).toBeVisible();
   expect(screen.queryByRole("link")).not.toBeInTheDocument();
   expect(screen.getByAltText("Foto de Maria")).toBeInTheDocument();

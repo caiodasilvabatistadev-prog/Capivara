@@ -6,7 +6,9 @@ body { background: #090f18; color: #e5edf6; font-family: Arial, sans-serif; back
 .bg-slate-50 { background-color: #0d1623; }
 .text-slate-500 { color: #a0b2c6; }
 .text-slate-600 { color: #b9c8d9; }
+.text-slate-700 { color: #d2deea; }
 .text-slate-900 { color: #edf4fa; }
+.text-slate-950 { color: #f7fafc; }
 .text-emerald-800, .text-emerald-900 { color: #70e0bd; }
 .text-emerald-950 { color: #d4f7ea; }
 .bg-emerald-900 { background-color: #166c54; }
