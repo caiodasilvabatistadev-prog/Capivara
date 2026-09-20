@@ -27,6 +27,7 @@ from app.parliament import amendments, proposals, votes
 from app.parties import PartyProvider
 from app.pdf_report import make_pdf
 from app.providers import CamaraProvider, Provider
+from app.public_figures import PRESIDENTS, STF_FIGURES, CatalogProvider, HistoricalCamaraProvider
 from app.rankings import MetricName, Ranking, ranking
 from app.subscriptions import (
     MailSettings,
@@ -83,6 +84,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "executivo": ExecutiveProvider(client),
             "judiciario": JudicialProvider(client),
             "governadores": GovernorProvider(client),
+            "stf": CatalogProvider(client, "stf", STF_FIGURES),
+            "presidentes": CatalogProvider(client, "presidentes", PRESIDENTS),
+            "camara_historica": HistoricalCamaraProvider(client),
             "tse2026": ElectionProvider(client, 2026),
             "tse2024": ElectionProvider(client, 2024),
         }
@@ -225,7 +229,10 @@ async def confirm(token: str, request: Request) -> SubscriptionResponse:
 async def search(
     request: Request,
     q: str = Query(min_length=2, max_length=100),
-    provider: str = Query(default="camara", pattern="^(camara|senado|executivo|judiciario)$"),
+    provider: str = Query(
+        default="camara",
+        pattern="^(camara|senado|executivo|judiciario|governadores|stf|presidentes|camara_historica)$",
+    ),
 ) -> list[Politician]:
     name = q.strip()
     if len(name) < 2:
@@ -249,7 +256,10 @@ async def search_all(
 @app.get("/rankings")
 async def public_rankings(
     request: Request,
-    provider: str = Query(default="camara", pattern="^(camara|senado|executivo|judiciario)$"),
+    provider: str = Query(
+        default="camara",
+        pattern="^(camara|senado|executivo|judiciario|governadores|stf|presidentes|camara_historica)$",
+    ),
     metric: MetricName = "expenses",
     year: int = Query(default=datetime.now(UTC).year, ge=2024, le=datetime.now(UTC).year),
 ) -> Ranking:

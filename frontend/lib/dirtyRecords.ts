@@ -2,10 +2,20 @@ export type OfficialSource = { date: string; label: string; url: string };
 
 export type DirtyRecord = {
   detail: string; name: string; photo: string; photoPosition: string; photoSize?: string;
-  slug: string; sources: OfficialSource[]; tags: string[];
+  slug: string; sources: OfficialSource[]; tags: string[]; lifeStatus?: "falecido" | "vivo";
 };
 
 export const dirtyRecords: DirtyRecord[] = [
+  {
+    slug: "jose-maria-marin", name: "José Maria Marin", lifeStatus: "falecido",
+    tags: ["Condenado", "Preso anteriormente", "Falecido"],
+    detail: "Ex-governador de São Paulo e ex-presidente da CBF. A Justiça dos Estados Unidos o condenou a quatro anos de prisão por associação criminosa e corrupção. A Federação Paulista de Futebol confirmou seu falecimento em 20 de julho de 2025.",
+    sources: [
+      { date: "22/08/2018", label: "Departamento de Justiça dos Estados Unidos", url: "https://www.justice.gov/usao-edny/pr/former-brazilian-soccer-official-sentenced-four-years-imprisonment-racketeering-and" },
+      { date: "20/07/2025", label: "Federação Paulista de Futebol", url: "https://futebolpaulista.com.br/Noticias/Detalhe.aspx?Noticia=29675" },
+    ],
+    photo: "https://commons.wikimedia.org/wiki/Special:FilePath/Jos%C3%A9%20Maria%20Marin%20in%202012.jpg", photoPosition: "center top",
+  },
   {
     slug: "jair-bolsonaro", name: "Jair Bolsonaro",
     tags: ["Inelegível", "Condenado", "Preso", "Domiciliar"],

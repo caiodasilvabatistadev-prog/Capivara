@@ -22,6 +22,10 @@ STJ = "https://www.stj.jus.br/web/verMinistrosSTJ?parametro=1"
 MINISTRIES = {
     1: ("Ministério da Saúde", "https://www.gov.br/saude/pt-br/composicao/ministro"),
     2: ("Ministério da Fazenda", "https://www.gov.br/fazenda/pt-br/composicao/ministro"),
+    3: (
+        "Secretaria-Geral da Presidência da República",
+        "https://www.gov.br/secretariageral/pt-br/composicao/ministro",
+    ),
 }
 
 

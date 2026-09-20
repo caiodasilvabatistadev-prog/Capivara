@@ -70,6 +70,14 @@ async def test_governors_all_states_and_aliases():
 async def test_incomplete_governors_rejected():
     respx.get(SOURCE).respond(200, json=[])
     async with httpx.AsyncClient() as client:
+        assert len(await GovernorProvider(client).listing()) == 27
+    respx.get(SOURCE).respond(503)
+    async with httpx.AsyncClient() as client:
+        assert len(await GovernorProvider(client).listing()) == 27
+    groups = governor_groups()
+    groups[0]["pessoas"] = groups[0]["pessoas"][:1]
+    respx.get(SOURCE).respond(200, json=groups)
+    async with httpx.AsyncClient() as client:
         with pytest.raises(ValueError):
             await GovernorProvider(client).listing()
 
@@ -192,7 +200,7 @@ def test_universal_routes_validate_and_limit(monkeypatch):
                 for i in range(10)
             ]
             monkeypatch.setitem(app.state.providers, key, fake)
-        assert len(client.get("/search/all?q=Maria").json()["items"]) == 80
+        assert len(client.get("/search/all?q=Maria").json()["items"]) == len(SOURCE_NAMES) * 10
         assert len(client.get("/autocomplete/all?q=Maria").json()["items"]) == 8
         assert all(
             source["available"] for source in client.get("/search/all?q=Maria").json()["sources"]

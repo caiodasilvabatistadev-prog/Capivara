@@ -79,6 +79,7 @@ def executive(person=PERSON, index=None):
         or '<div id="content-core"><a href="' + TREASURY_PERSON + '">Maria Silva</a></div>',
     )
     respx.get(TREASURY_PERSON).respond(200, text=person)
+    respx.get(MINISTRIES[3][1]).respond(200, text=person)
 
 
 @respx.mock
@@ -135,7 +136,7 @@ def test_senate_missing_optional_fields(client):
 def test_executive_current_profiles(client):
     executive()
     result = client.get("/search?q=maria&provider=executivo").json()
-    assert len(result) == 2
+    assert len(result) == 3
     assert result[0]["power"] == "executivo"
     assert result[0]["email"] == "maria@gov.br"
     assert respx.calls[0].request.headers["accept"] == "text/html"
