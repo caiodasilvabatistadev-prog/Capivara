@@ -12,6 +12,7 @@ import PoliticalFamily from "./PoliticalFamily";
 import Career from "./Career";
 import Newsletter from "./Newsletter";
 import Proposals from "./Proposals";
+import DashboardMenu from "./DashboardMenu";
 
 const labels: Record<string, string> = {
   "Presença em Plenário - Presenças na Câmara": "Dias em Plenário",
@@ -76,17 +77,17 @@ export default function Dashboard({ data, onBack }: { data: DashboardData; onBac
     </aside>
     <div className="my-5 flex flex-wrap justify-between gap-2 text-sm text-slate-600"><p>Período dos indicadores: <strong>{data.year || "Não informado"}</strong></p><p>Consulta: {new Date(data.fetched_at).toLocaleString("pt-BR")}</p></div>
     <p className="mb-8 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-950">{data.notice}</p>
-    <Biography person={person} />
-    <Assets person={person} />
-    {financialGroups.map(renderGroup)}
+    <DashboardMenu />
+    <div id="perfil-biografia" className="scroll-mt-32"><Biography person={person} /></div>
+    <div id="perfil-bens" className="scroll-mt-32"><Assets person={person} /></div>
+    <div id="perfil-financas" className="scroll-mt-32">{financialGroups.map(renderGroup)}</div>
     {months.length > 0 && <section aria-label="Gasto mensal" className="mb-10 rounded-2xl border bg-white p-6"><h3 className="text-xl font-bold">Cota parlamentar por mês</h3><p className="mb-6 mt-2 text-sm text-slate-500">Valores publicados por {person.institution || "Câmara dos Deputados"}. As barras comparam os meses, sem indicar limite de gastos.</p><div className="space-y-4">{months.map(row => <div className="grid grid-cols-[2.5rem_1fr_8rem] items-center gap-3 text-sm" key={row.month}><span>{row.month}</span><div aria-hidden="true" className="h-3 rounded-full bg-emerald-50"><div className="h-3 rounded-full bg-emerald-700" style={{ width: `${100 * row.amount / maximum}%` }} /></div><span className="text-right font-medium">R$ {row.label}</span></div>)}</div></section>}
     {amendments.length > 0 && <section aria-label="Emendas para a população" className="mb-10"><h3 className="text-xl font-bold">Emendas para estados e municípios</h3><p className="mb-5 mt-2 text-sm text-slate-600">Destinações destacadas na página oficial. Autorizado é previsão no orçamento; empenhado é reservado; pago é transferido. Não somamos essas etapas.</p><div className="grid gap-4 lg:grid-cols-3">{amendments.map(block => <article className="rounded-2xl border bg-white p-5" key={block.text}><h4 className="mb-5 font-semibold leading-relaxed">{block.text.slice(8)}</h4><dl className="space-y-3">{block.rows.slice(1).map((row, i) => <div className="flex flex-wrap justify-between gap-2 text-sm" key={i}><dt className="text-slate-500">{row[0]}</dt><dd className="font-bold">{row[1]}</dd></div>)}</dl></article>)}</div></section>}
-    <ParliamentRecords person={person} show="amendments" onClear={title => setParliament(old => old.filter(item => item.title !== title))} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} />
-    {legislativeGroups.map(renderGroup)}
-    <ParliamentRecords person={person} show="votes" onClear={title => setParliament(old => old.filter(item => item.title !== title))} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} />
-    {attendanceGroups.map(renderGroup)}
-    <Career person={person} />
-    <PoliticalFamily person={person} />
+    <div id="perfil-emendas" className="scroll-mt-32"><ParliamentRecords person={person} show="amendments" onClear={title => setParliament(old => old.filter(item => item.title !== title))} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} /></div>
+    <div id="perfil-atividade" className="scroll-mt-32">{legislativeGroups.map(renderGroup)}</div>
+    <div id="perfil-votacoes" className="scroll-mt-32"><ParliamentRecords person={person} show="votes" onClear={title => setParliament(old => old.filter(item => item.title !== title))} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} /></div>
+    <div id="perfil-presenca" className="scroll-mt-32">{attendanceGroups.map(renderGroup)}</div>
+    <div id="perfil-familia" className="scroll-mt-32"><Career person={person} /><PoliticalFamily person={person} /></div>
     {remainingGroups.map(renderGroup)}
     <PublicContext key={person.provider + "-" + person.id} person={person} onLoaded={setContext} />
     <News key={"news-" + person.provider + "-" + person.id} person={person} />
