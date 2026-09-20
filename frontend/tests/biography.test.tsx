@@ -14,6 +14,7 @@ test("mostra biografia complementar com aviso e fonte dentro do projeto", async 
       source_url: "https://pt.wikipedia.org/wiki/Maria",
       fetched_at: "2026-09-19T00:00:00Z",
       notice: "Conteúdo comunitário.",
+      media: [{ title: "Maria apresenta projeto", publisher: "G1", published_at: "2026-09-18T00:00:00Z", source_url: "https://g1.globo.com", reference_url: "https://news.google.com/a" }],
     }),
   }));
   render(<Biography person={{ ...person, photo_url: "https://example.com/maria.jpg" }} />);
@@ -21,11 +22,12 @@ test("mostra biografia complementar com aviso e fonte dentro do projeto", async 
   expect(screen.getByText("Conteúdo comunitário.")).toBeVisible();
   expect(screen.queryByRole("link")).not.toBeInTheDocument();
   expect(screen.getByAltText("Foto de Maria")).toBeInTheDocument();
+  expect(screen.getByText("Maria apresenta projeto")).toBeVisible();
 });
 
 test("não atribui artigo de homônimo e informa falha", async () => {
   const fetch = vi.fn()
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ found: false }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ found: false, media: [] }) })
     .mockResolvedValueOnce({ ok: false });
   vi.stubGlobal("fetch", fetch);
   const { rerender } = render(<Biography person={person} />);
