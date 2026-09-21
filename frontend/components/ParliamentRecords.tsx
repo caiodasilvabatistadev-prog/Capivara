@@ -9,6 +9,19 @@ const folded = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f
 function publicSubject(row: string[]) {
   const original = `${row[1] || ""} ${row[2] || ""}`.trim();
   const value = folded(original);
+  if (/^msf\s+\d+\/\d+/i.test(row[1] || "")) {
+    const tail = (row[1] || "").split(/\s[-—]\s/).at(-1)?.replace(/\.$/, "") || "";
+    const appointment = tail.match(/^(.*?)\s+\(([^)]+)\)$/);
+    if (appointment) {
+      const [, name, destination] = appointment;
+      return folded(destination) === "onu"
+        ? `Indicação de ${name} para representar o Brasil na ONU`
+        : `Indicação de ${name} para embaixador do Brasil na ${destination}`;
+    }
+    return "Indicação de autoridade enviada ao Senado";
+  }
+  const publicChoice = (row[2] || "").match(/escolhe o senhor (.+?) para o cargo de (.+?)(?:,| nos termos)/i);
+  if (publicChoice) return `Escolha de ${publicChoice[1]} para ${publicChoice[2]}`;
   if (/maconha|cannabis/.test(value)) {
     if (/medicin|terapeut/.test(value)) return "Uso medicinal da cannabis";
     if (/legaliz|regulament|descriminaliz/.test(value)) return "Legalização ou regulamentação da maconha";
@@ -21,6 +34,8 @@ function publicSubject(row: string[]) {
   if (/educacao|ensino|escola/.test(value)) return "Educação e ensino";
   if (/saude|hospital|sus/.test(value)) return "Saúde pública";
   if (/meio ambiente|florest|clima/.test(value)) return "Meio ambiente e clima";
+  const changedLaw = (row[2] || "").match(/altera.+?lei complementar n[º°]?\s*([\d.]+),?\s*de\s*(\d{4})/i);
+  if (changedLaw) return `Mudança em regra da Lei Complementar nº ${changedLaw[1]}/${changedLaw[2]}`;
   return row[1] || "Assunto descrito pela fonte oficial";
 }
 function Panel({ person, kind, onLoaded, onClear }: { person: Politician; kind: "amendments" | "votes"; onLoaded: (data: Section) => void; onClear?: (title: string) => void }) {
