@@ -1,11 +1,13 @@
 import asyncio
 import csv
+import json
 import re
 from collections import defaultdict
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from decimal import Decimal
 from io import BytesIO, TextIOWrapper
+from pathlib import Path
 from typing import Any, Literal
 from zipfile import BadZipFile, ZipFile
 
@@ -25,8 +27,10 @@ MetricName = Literal[
     "amendments",
     "party_fund",
     "election_fund",
+    "company_payments",
 ]
 TRANSPARENCY_API = "https://api.portaldatransparencia.gov.br/api-de-dados/emendas"
+COMPANY_DATA = Path(__file__).with_name("data")
 
 
 def public_money(value: object) -> Decimal:
@@ -64,7 +68,7 @@ class Ranking(BaseModel):
     entries: list[Entry] = []
 
 
-def ordered(entries: Iterable[Entry]) -> list[Entry]:
+def ordered(entries: Iterable[Entry], limit: int = 10) -> list[Entry]:
     result = sorted(entries, key=lambda item: (-item.value, item.name.casefold()))
     previous = None
     position = 0
@@ -73,7 +77,42 @@ def ordered(entries: Iterable[Entry]) -> list[Entry]:
             position = index + 1
         entry.position = position
         previous = entry.value
-    return result[:10]
+    return result[:limit]
+
+
+async def company_payment_ranking(
+    client: httpx.AsyncClient, year: int, api_key: str, data: Ranking
+) -> Ranking:
+    del client, api_key
+    snapshot = COMPANY_DATA / f"company_payments_{year}.json"
+    if not snapshot.exists():
+        data.notice = (
+            "A consolidação anual completa ainda está sendo processada. Não publicamos "
+            "uma ordem baseada apenas nas primeiras páginas da API."
+        )
+        return data
+    payload = json.loads(snapshot.read_text(encoding="utf-8"))
+    entries = [
+        Entry(
+            name=row["name"],
+            value=Decimal(row["value"]),
+            detail=f"{row['sector']} · CNPJ {row['cnpj']}",
+        )
+        for row in payload["entries"]
+    ]
+    data.entries = ordered(entries, 100)
+    data.covered = int(payload["covered"])
+    data.total = int(payload["covered"])
+    data.status = "ready" if entries else "unavailable"
+    data.source_url = "https://portaldatransparencia.gov.br/despesas/recursos-recebidos"
+    data.notice = (
+        "Pagamentos federais recebidos no ano, somados por CNPJ na base anual completa "
+        "do Portal da Transparência. O nicho é a atividade principal publicada no cadastro "
+        "do CNPJ. Órgãos públicos e entidades sem fins lucrativos são excluídos pela natureza "
+        "jurídica. O valor não representa lucro e não indica irregularidade."
+    )
+    data.source_as_of = payload.get("source_as_of")
+    return data
 
 
 def chamber_expenses(content: bytes, year: int) -> list[Entry]:
@@ -315,6 +354,16 @@ async def ranking(
 ) -> Ranking:
     if metric in {"party_fund", "election_fund"}:
         return party_snapshot(metric, year)
+    if metric == "company_payments":
+        data = Ranking(
+            provider="nacional",
+            metric=metric,
+            year=year,
+            title="100 CNPJs que mais receberam recursos federais",
+            unit="BRL",
+            notice="Fonte ainda não consultada.",
+        )
+        return await company_payment_ranking(client, year, transparency_api_key, data)
     data = Ranking(
         provider=scope,
         metric=metric,
@@ -324,6 +373,7 @@ async def ranking(
             "absences": "Maiores ausências em Plenário",
             "approved": "Projetos aprovados",
             "amendments": "Maiores valores empenhados em emendas individuais",
+            "company_payments": "100 CNPJs que mais receberam recursos federais",
         }[metric],
         unit="BRL"
         if metric in {"expenses", "amendments"}

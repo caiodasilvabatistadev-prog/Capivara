@@ -1,0 +1,27 @@
+name: Atualizar ranking de empresas
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: Ano a consolidar
+        required: true
+        default: "2026"
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx
+      - name: Consolidar base completa e classificar CNPJs
+        run: python backend/scripts/update_company_payments.py "${{ inputs.year || '2026' }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ranking-empresas-${{ inputs.year }}
+          path: backend/app/data/company_payments_*.json

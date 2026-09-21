@@ -11,7 +11,15 @@ from fastapi.testclient import TestClient
 import app.rankings as module
 from app.main import app
 from app.models import Politician
-from app.rankings import Entry, Ranking, absences, amendment_ranking, chamber_expenses, ordered
+from app.rankings import (
+    Entry,
+    Ranking,
+    absences,
+    amendment_ranking,
+    chamber_expenses,
+    company_payment_ranking,
+    ordered,
+)
 
 
 def archive(csv_text, year=2026):
@@ -112,6 +120,8 @@ def test_rankings_endpoint_sources_and_limits():
             assert data["status"] == "ready"
         assert client.get("/rankings?metric=party_fund&year=2026").json()["entries"] == []
         assert client.get("/rankings?metric=election_fund&year=2025").json()["entries"] == []
+        companies = client.get("/rankings?metric=company_payments&year=2026").json()
+        assert companies["provider"] == "nacional" and companies["status"] == "unavailable"
 
 
 @respx.mock
@@ -200,3 +210,28 @@ async def test_amendment_ranking_uses_individual_committed_values():
     assert result.status == "ready" and result.covered == 2
     empty = Ranking(provider="camara", metric="amendments", year=2026, title="Emendas", notice="")
     assert (await amendment_ranking(httpx.AsyncClient(), 2026, "", empty)).status == "unavailable"
+
+
+async def test_company_payment_ranking_reads_complete_snapshot(tmp_path, monkeypatch):
+    data = Ranking(
+        provider="nacional", metric="company_payments", year=2025, title="Empresas", notice=""
+    )
+    monkeypatch.setattr(module, "COMPANY_DATA", tmp_path)
+    (tmp_path / "company_payments_2025.json").write_text(
+        '{"covered": 2, "source_as_of": "2026-01-01", "entries": '
+        '[{"name":"Empresa A","cnpj":"12.345.678/0001-90",'
+        '"sector":"Tecnologia","value":"150"}]}',
+        encoding="utf-8",
+    )
+    async with httpx.AsyncClient() as client:
+        result = await company_payment_ranking(client, 2025, "token", data)
+    assert result.status == "ready"
+    assert result.entries[0].name == "Empresa A"
+    assert result.entries[0].value == Decimal("150")
+    assert "Tecnologia · CNPJ 12.345.678/0001-90" == result.entries[0].detail
+    assert result.covered == result.total == 2
+    missing = Ranking(
+        provider="nacional", metric="company_payments", year=2024, title="Empresas", notice=""
+    )
+    async with httpx.AsyncClient() as client:
+        assert (await company_payment_ranking(client, 2024, "", missing)).status == "unavailable"

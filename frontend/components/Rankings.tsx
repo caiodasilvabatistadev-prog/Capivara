@@ -16,6 +16,7 @@ const chartColors: Record<string, string> = {
   amendments: "rgba(16, 185, 129, .16)", expenses: "rgba(59, 130, 246, .15)",
   approved: "rgba(139, 92, 246, .15)", absences: "rgba(245, 158, 11, .17)",
   party_fund: "rgba(20, 184, 166, .16)", election_fund: "rgba(14, 165, 233, .15)",
+  company_payments: "rgba(244, 63, 94, .13)",
 };
 
 function RankingChart({ data, provider, onOpen }: { data: Ranking; provider: string; onOpen: (provider: string, id: number) => void }) {
@@ -58,7 +59,7 @@ function Card({ provider, metric, year, title, onOpen }: { provider: string; met
       {data.status === "not_applicable" && <p className="mb-3 font-semibold">Indicador parlamentar não aplicável a este poder</p>}
       <p className="mb-4 text-xs leading-relaxed text-slate-500">{data.notice}</p>
       <RankingChart data={data} provider={provider} onOpen={onOpen} />
-      {data.source_url && <details className="mt-5 text-xs text-slate-500"><summary className="cursor-pointer font-semibold">Fonte e período</summary><p className="mt-3 break-all">{data.source_url}</p><p className="mt-2">Ano: {data.year}{data.source_as_of ? " · Publicação: " + data.source_as_of.split("-").reverse().join("/") : " · Arquivo consultado agora"}</p><p className="mt-2">Cobertura: {data.covered} registros de pessoas ou partidos{data.total !== null ? " / " + data.total + " na referência" : " com dados no arquivo"}. Lista limitada aos dez primeiros; empates têm a mesma posição.</p></details>}
+      {data.source_url && <details className="mt-5 text-xs text-slate-500"><summary className="cursor-pointer font-semibold">Fonte e período</summary><p className="mt-3 break-all">{data.source_url}</p><p className="mt-2">Ano: {data.year}{data.source_as_of ? " · Publicação: " + data.source_as_of.split("-").reverse().join("/") : " · Arquivo consultado agora"}</p><p className="mt-2">Cobertura: {data.covered} registros{data.total !== null ? " / " + data.total + " na referência" : " com dados no arquivo"}. Lista limitada aos {data.metric === "company_payments" ? "100" : "dez"} primeiros; empates têm a mesma posição.</p></details>}
     </div>}
   </article>;
 }
@@ -71,6 +72,8 @@ export default function Rankings({ provider: initialProvider, onOpen }: { provid
     {!initialProvider && <label className="mb-5 block text-sm font-semibold">Comparação parlamentar<select className="ml-3 rounded-lg border bg-slate-50 px-3 py-2" value={provider} onChange={event => setProvider(event.target.value)}><option value="camara">Câmara dos Deputados</option><option value="senado">Senado Federal</option></select></label>}
     <p className="mb-5 text-sm leading-relaxed text-slate-500">Cada comparação abre como gráfico de barras, com valor absoluto, posição e proporção visual. Gastos, projetos e faltas são indicadores distintos; não formam uma nota política. Os dados são consultados quando você abre cada painel.</p>
     <div className="grid items-start gap-4 md:grid-cols-2">{[["amendments", "Mais emendas individuais empenhadas"], ["expenses", "Maiores gastos com cota parlamentar"], ["approved", "Mais projetos aprovados"], ["absences", "Maiores ausências em Plenário"]].map(([metric, title]) => <Card key={provider + metric + year} provider={provider} metric={metric} year={year} title={title} onOpen={onOpen} />)}</div>
+    <h3 className="mb-2 mt-8 text-xl font-bold">Empresas que recebem recursos federais</h3><p className="mb-5 text-sm leading-relaxed text-slate-500">Ranking nacional por valor recebido, com CNPJ e órgãos pagadores. O valor não representa lucro e não indica irregularidade.</p>
+    <Card provider="nacional" metric="company_payments" year={year} title="Top 100 — recursos públicos recebidos" onOpen={onOpen} />
     <h3 className="mb-2 mt-8 text-xl font-bold">Recursos dos partidos — âmbito nacional</h3><p className="mb-5 text-sm leading-relaxed text-slate-500">Os fundos pertencem aos partidos, sem divisão por poder. Fundo Partidário: balanço fechado de 2025. Fundo Eleitoral: valores destinados para 2026, que não comprovam recebimento pelas candidaturas.</p>
     <div className="grid items-start gap-4 lg:grid-cols-2"><Card provider="camara" metric="party_fund" year={2025} title="Fundo Partidário — maiores repasses" onOpen={onOpen} /><Card provider="camara" metric="election_fund" year={2026} title="Fundo Eleitoral — maiores valores destinados" onOpen={onOpen} /></div>
   </section>;
