@@ -411,18 +411,21 @@ async def votes(client: httpx.AsyncClient, scope: str, person_id: int, days: int
                 f"descrição da votação."
             )
         )
-    rows[1:] = sorted(rows[1:], key=lambda row: row[0], reverse=True)
+    rows[1:] = sorted(
+        (row for row in rows[1:] if row[3] in {"Sim", "Não"}),
+        key=lambda row: row[0],
+        reverse=True,
+    )
     result.blocks = [
         note(
             f"Período: {start.isoformat()} a {end.isoformat()}. Consulta em "
             f"{datetime.now(UTC).isoformat()}."
         ),
         note(
-            "Sim e Não se referem ao objeto e à etapa desta votação, não à aprovação "
-            "de toda a política pública. Abstenção, obstrução, presidência e voto "
-            "secreto são preservados. Sem registro não significa falta: pode haver "
-            "licença, período fora do mandato ou limitações da fonte. Não atribuímos "
-            "intenção ou impacto ao voto."
+            "Esta lista mostra somente votos individuais registrados como Sim ou Não. "
+            "Eles se referem ao objeto e à etapa desta votação, não à aprovação de toda "
+            "a política pública. Abstenção, obstrução, presidência, códigos internos, "
+            "voto secreto e ausência de registro não são convertidos em posição."
         ),
         *result.blocks,
         ReportBlock(kind="table", rows=rows),

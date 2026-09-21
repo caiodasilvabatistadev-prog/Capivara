@@ -27,8 +27,14 @@ export default function Home() {
     const parameters = new URLSearchParams(window.location.search);
     const provider = parameters.get("provider");
     const id = parameters.get("id");
+    const searchedName = parameters.get("q");
     if (provider && id && /^\d+$/.test(id)) {
       void load(`/politicians/${encodeURIComponent(provider)}/${id}/dashboard`, true);
+    } else if (searchedName && searchedName.trim().length >= 2) {
+      queueMicrotask(() => {
+        setQuery(searchedName);
+        void load("/search/all?q=" + encodeURIComponent(searchedName.trim()));
+      });
     }
   }, []);
   useEffect(() => {

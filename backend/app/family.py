@@ -17,6 +17,7 @@ class FamilyMember(BaseModel):
     relationship: str
     description: str = ""
     evidence_url: str
+    political_profile: bool = False
 
 
 class PoliticalFamily(BaseModel):
@@ -27,6 +28,23 @@ class PoliticalFamily(BaseModel):
     notice: str = (
         "Só exibimos parentescos acompanhados de referência na base consultada. "
         "A ausência de resultado não prova que não exista parentesco político."
+    )
+
+
+def has_political_profile(description: str) -> bool:
+    value = folded(description)
+    return any(
+        term in value
+        for term in (
+            "politic",
+            "deputad",
+            "senador",
+            "vereador",
+            "prefeit",
+            "governador",
+            "presidente",
+            "ministr",
+        )
     )
 
 
@@ -41,12 +59,14 @@ async def documented_family(client: httpx.AsyncClient, person: Politician) -> Po
                 continue
             curated_related_id = link.target_id if link.source_id == subject.id else link.source_id
             related = people[curated_related_id]
+            description = f"{related.public_roles}. {link.evidence}"
             members.append(
                 FamilyMember(
                     name=related.name,
                     relationship=link.relationship,
-                    description=f"{related.public_roles}. {link.evidence}",
+                    description=description,
                     evidence_url=link.evidence_url,
+                    political_profile=has_political_profile(description),
                 )
             )
         return PoliticalFamily(found=bool(members), members=members, source_url=family.source_url)
@@ -116,6 +136,7 @@ async def documented_family(client: httpx.AsyncClient, person: Politician) -> Po
                 relationship=relationship,
                 description=description,
                 evidence_url=f"{WIKIDATA}/wiki/{qid}#{relationship}",
+                political_profile=has_political_profile(description),
             )
         )
     return PoliticalFamily(found=True, members=members, source_url=f"{WIKIDATA}/wiki/{qid}")

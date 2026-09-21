@@ -235,8 +235,7 @@ async def test_chamber_nominal_votes_missing_record_symbolic_and_failure():
     async with httpx.AsyncClient() as client:
         section = await votes(client, "camara", 1, 90)
         rows = section.blocks[-1].rows
-        assert len(rows) == 3 and rows[1][3] == "Sim" and rows[1][2] == "Saúde"
-        assert rows[2][3] == "Sem voto nominal registrado"
+        assert len(rows) == 2 and rows[1][3] == "Sim" and rows[1][2] == "Saúde"
         assert "Falhas de consulta: 1" in section.blocks[2].text
         assert "não se aplicam" in (await votes(client, "judiciario", 1, 90)).blocks[0].text
 
@@ -245,13 +244,13 @@ async def test_chamber_nominal_votes_missing_record_symbolic_and_failure():
 async def test_senate_current_api_secret_identity_and_interval():
     now = datetime.now(UTC).date()
 
-    def record(code, date, secret="N", ballot=True):
+    def record(code, date, secret="N", ballot=True, value="Não"):
         return {
             "dataSessao": date,
             "identificacao": "PL 1/2026",
             "descricaoVotacao": "Emenda sobre ensino",
             "ementa": "Educação",
-            "votos": [{"codigoParlamentar": 1, "siglaVotoParlamentar": "Não"}] if ballot else [],
+            "votos": [{"codigoParlamentar": 1, "siglaVotoParlamentar": value}] if ballot else [],
             "votacaoSecreta": secret,
             "codigoSessaoVotacao": code,
             "sequencialVotacao": 1,
@@ -261,14 +260,13 @@ async def test_senate_current_api_secret_identity_and_interval():
         record(1, now.isoformat()),
         record(2, now.isoformat(), "S"),
         record(3, now.isoformat(), ballot=False),
+        record(5, now.isoformat(), value="P-NRV"),
         record(4, (now - timedelta(days=500)).isoformat()),
     ]
     respx.get(SENADO).mock(return_value=httpx.Response(200, json=entries))
     async with httpx.AsyncClient() as client:
         rows = (await votes(client, "senado", 1, 30)).blocks[-1].rows
-        assert len(rows) == 4 and rows[1][3] == "Não"
-        assert rows[2][3] == "Voto secreto — posição individual não divulgada"
-        assert rows[3][3] == "Sem voto individual registrado"
+        assert len(rows) == 2 and rows[1][3] == "Não"
 
 
 @respx.mock
@@ -320,4 +318,4 @@ async def test_chamber_null_ballot_is_unknown_not_against():
     )
     async with httpx.AsyncClient() as client:
         rows = (await votes(client, "camara", 1, 90)).blocks[-1].rows
-        assert rows[1][3] == "Sem voto nominal registrado"
+        assert len(rows) == 1

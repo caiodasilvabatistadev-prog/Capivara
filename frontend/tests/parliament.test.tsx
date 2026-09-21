@@ -15,7 +15,7 @@ test("carrega destinos e votos, preserva etapa e filtra assuntos", async () => {
   expect(screen.getByText("R$ 0,00")).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Consultar votos individuais" }));
   expect(await screen.findByText("Como votou: Não — contra o objeto votado")).toBeVisible();
-  expect(screen.getByText(/Como votou: Sem voto nominal registrado/)).toBeVisible();
+  expect(screen.queryByText(/Como votou: Sem voto nominal registrado/)).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Saúde" }));
   expect(screen.queryByText("Requerimento sobre impostos")).toBeNull();
   expect(onLoaded).toHaveBeenCalledTimes(2);

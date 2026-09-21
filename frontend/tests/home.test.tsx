@@ -82,3 +82,15 @@ test("não mostra votação parlamentar em perfil do Executivo", async () => {
   expect(screen.queryByRole("button", { name: /Como votou/ })).not.toBeInTheDocument();
 });
 
+test("abre a busca recebida pelo link de um parente político", async () => {
+  window.history.replaceState({}, "", "/?q=Ros%C3%A2ngela%20Moro#public-search");
+  const relative = { ...person, name: "Rosângela Moro" };
+  const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [relative], sources: [] }) });
+  vi.stubGlobal("fetch", fetch);
+  render(<Home />);
+  expect(await screen.findByRole("button", { name: "Puxar a capivara de Rosângela Moro" })).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Nome da pessoa" })).toHaveValue("Rosângela Moro");
+  expect(fetch).toHaveBeenCalledWith("http://localhost:8000/search/all?q=Ros%C3%A2ngela%20Moro", { cache: "no-store" });
+  window.history.replaceState({}, "", "/");
+});
+

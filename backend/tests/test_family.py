@@ -3,7 +3,7 @@ import respx
 from fastapi.testclient import TestClient
 
 from app.biography import WIKIPEDIA
-from app.family import WIKIDATA, documented_family
+from app.family import WIKIDATA, documented_family, has_political_profile
 from app.main import app
 from app.models import Politician
 
@@ -36,6 +36,16 @@ async def test_family_uses_curated_tree_before_external_lookup():
         "Fernando Rodrigues Catão",
     }
     assert result.source_url.startswith("https://dspace.sti.ufcg.edu.br/")
+    assert sum(member.political_profile for member in result.members) == 3
+    assert not next(
+        member for member in result.members if member.name == "Fernando Rodrigues Catão"
+    ).political_profile
+
+
+def test_political_profile_detection():
+    assert has_political_profile("Deputada federal de São Paulo")
+    assert has_political_profile("Ministra do STF")
+    assert not has_political_profile("Advogada brasileira")
 
 
 @respx.mock
@@ -89,7 +99,9 @@ async def test_family_keeps_only_referenced_relationships_and_resolves_labels():
         ("Ana", "filho(a)"),
     ]
     assert result.members[0].description == "político"
+    assert result.members[0].political_profile
     assert result.members[1].description == ""
+    assert not result.members[1].political_profile
 
 
 @respx.mock

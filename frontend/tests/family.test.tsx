@@ -4,11 +4,12 @@ import PoliticalFamily from "../components/PoliticalFamily";
 import { person } from "./fixtures";
 
 test("mostra somente parentescos documentados e a prova", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ found: true, members: [{ name: "João", relationship: "pai", description: "político brasileiro", evidence_url: "https://www.wikidata.org/wiki/Q1" }], notice: "Cobertura parcial." }) }));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ found: true, members: [{ name: "João", relationship: "pai", description: "político brasileiro", evidence_url: "https://www.wikidata.org/wiki/Q1", political_profile: true }], notice: "Cobertura parcial." }) }));
   render(<PoliticalFamily person={person} />);
   expect(await screen.findByText("João")).toBeVisible();
   expect(screen.getByText("político brasileiro")).toBeVisible();
   expect(screen.getByRole("link", { name: /documento/ })).toHaveAttribute("href", "https://www.wikidata.org/wiki/Q1");
+  expect(screen.getByRole("link", { name: "Puxar a capivara de João" })).toHaveAttribute("href", "/?q=Jo%C3%A3o#public-search");
   expect(screen.getByText("Cobertura parcial.")).toBeVisible();
 });
 
