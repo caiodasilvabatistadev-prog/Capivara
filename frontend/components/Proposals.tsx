@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { request, type DashboardData, type Politician } from "../lib/api";
 
 type Section = DashboardData["sections"][number];
@@ -14,18 +14,24 @@ export default function Proposals({ person, initialYear, onLoaded }: { person: P
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<"authored" | "reported">("authored");
-  if (person.provider !== "camara") return null;
-  async function load() {
+  async function load(selectedKind: "authored" | "reported" = kind) {
+    setKind(selectedKind);
     setBusy(true); setError("");
     try {
-      const result = await request<Section>(`/politicians/${person.provider}/${person.id}/proposals?year=${year}&kind=${kind}`);
+      const result = await request<Section>(`/politicians/${person.provider}/${person.id}/proposals?year=${year}&kind=${selectedKind}`);
       setData(result); onLoaded(result);
     } catch { setError("Não foi possível consultar as propostas agora. Tente novamente."); }
     finally { setBusy(false); }
   }
+  useEffect(() => {
+    const open = (event: Event) => void load((event as CustomEvent<"authored" | "reported">).detail);
+    window.addEventListener("open-proposals", open);
+    return () => window.removeEventListener("open-proposals", open);
+  });
+  if (person.provider !== "camara") return null;
   const table = data?.blocks.find(block => block.kind === "table");
   const rows = (table?.rows.slice(1) || []).filter(row => row.slice(1, 5).join(" ").toLocaleLowerCase("pt-BR").includes(query.toLocaleLowerCase("pt-BR")));
-  return <section className="mb-10 rounded-2xl border bg-white p-6" aria-label="Lista de propostas de sua autoria">
+  return <section id="propostas-detalhadas" className="mb-10 scroll-mt-32 rounded-2xl border bg-white p-6" aria-label="Lista de propostas de sua autoria">
     <p className="text-xs font-bold uppercase tracking-widest text-emerald-800">Feitos registrados pela Câmara</p>
     <h3 className="mt-2 text-2xl font-bold">Propostas de autoria e relatadas, em linguagem simples</h3>
     <p className="mt-3 text-sm leading-relaxed text-slate-600">Autoria indica quem assinou a proposta. Relatoria indica quem analisou uma proposta e apresentou parecer. Veja a descrição original e a fonte oficial em cada item.</p>
