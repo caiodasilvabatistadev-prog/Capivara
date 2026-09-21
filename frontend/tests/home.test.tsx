@@ -68,3 +68,17 @@ test("busca única mostra cargos e poderes e informa fontes indisponíveis", asy
   expect(screen.getByRole("heading", { name: "Maria Tribunal" })).toBeVisible();
 });
 
+test("não mostra votação parlamentar em perfil do Executivo", async () => {
+  const executive = { ...person, provider: "presidentes", name: "Maria Executiva", role: "Presidente da República", institution: "Presidência da República", power: "executivo" };
+  const executiveDashboard = { ...dashboard, politician: executive };
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => ({ ok: true, json: async () => url.endsWith("/news") ? { items: [], notice: "Fixture", fetched_at: "2026-09-18" } : url.includes("/dashboard") ? executiveDashboard : { items: [executive], sources: [] } })));
+  render(<Home />);
+  const user = userEvent.setup();
+  await user.type(screen.getByRole("combobox", { name: "Nome da pessoa" }), "Maria");
+  await user.click(screen.getByRole("button", { name: "Buscar" }));
+  await user.click(await screen.findByRole("button", { name: "Puxar a capivara de Maria Executiva" }));
+  expect(await screen.findByRole("heading", { name: "Maria Executiva" })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Como votou nos assuntos da população?" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Como votou/ })).not.toBeInTheDocument();
+});
+

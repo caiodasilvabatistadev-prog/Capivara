@@ -41,6 +41,7 @@ export default function Dashboard({ data, onBack }: { data: DashboardData; onBac
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const person = data.politician;
+  const isLegislative = person.power === "legislativo" || ["camara", "senado", "camara_historica"].includes(person.provider);
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => { title.current?.focus(); }, [data]);
   const groupPriority = ["Gastos públicos", "Recursos públicos", "Equipe", "Atividade legislativa", "Propostas legislativas", "Votações", "Discursos", "Presença"];
@@ -89,7 +90,7 @@ export default function Dashboard({ data, onBack }: { data: DashboardData; onBac
     {amendments.length > 0 && <section aria-label="Emendas para a população" className="mb-10"><h3 className="text-xl font-bold">Emendas para estados e municípios</h3><p className="mb-5 mt-2 text-sm text-slate-600">Destinações destacadas na página oficial. Autorizado é previsão no orçamento; empenhado é reservado; pago é transferido. Não somamos essas etapas.</p><div className="grid gap-4 lg:grid-cols-3">{amendments.map(block => <article className="rounded-2xl border bg-white p-5" key={block.text}><h4 className="mb-5 font-semibold leading-relaxed">{block.text.slice(8)}</h4><dl className="space-y-3">{block.rows.slice(1).map((row, i) => <div className="flex flex-wrap justify-between gap-2 text-sm" key={i}><dt className="text-slate-500">{row[0]}</dt><dd className="font-bold">{row[1]}</dd></div>)}</dl></article>)}</div></section>}
     <div id="perfil-emendas" className="scroll-mt-32"><ParliamentRecords person={person} show="amendments" onClear={title => setParliament(old => old.filter(item => item.title !== title))} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} /></div>
     <div id="perfil-atividade" className="scroll-mt-32">{legislativeGroups.map(renderGroup)}</div>
-    <div id="perfil-votacoes" className="scroll-mt-32"><ParliamentRecords person={person} show="votes" onClear={title => setParliament(old => old.filter(item => item.title !== title))} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} /></div>
+    {isLegislative && <div id="perfil-votacoes" className="scroll-mt-32"><ParliamentRecords person={person} show="votes" onClear={title => setParliament(old => old.filter(item => item.title !== title))} onLoaded={section => setParliament(old => [...old.filter(item => item.title !== section.title), section])} /></div>}
     <div id="perfil-presenca" className="scroll-mt-32">{attendanceGroups.map(renderGroup)}</div>
     <div id="perfil-familia" className="scroll-mt-32"><Career person={person} /><PoliticalFamily person={person} /></div>
     {remainingGroups.map(renderGroup)}
