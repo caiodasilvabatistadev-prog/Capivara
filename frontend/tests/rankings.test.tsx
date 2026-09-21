@@ -14,6 +14,8 @@ test("comparação consulta fonte sob demanda e abre dashboard interno", async (
   expect(fetch).not.toHaveBeenCalled();
   await userEvent.click(within(expenses()).getByRole("button", { name: "Consultar comparação" }));
   expect(await screen.findByText(/1.234,56/)).toBeVisible();
+  expect(screen.getByLabelText("Gráfico de barras: Gastos")).toBeVisible();
+  expect(screen.getByText("Maior resultado = 100%")).toBeVisible();
   expect(screen.getByAltText("Foto de Maria")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Puxar a capivara de Maria" }));
   expect(onOpen).toHaveBeenCalledWith("camara", 1);
