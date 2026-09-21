@@ -179,14 +179,14 @@ async def test_amendment_ranking_uses_individual_committed_values():
                 {
                     "tipoEmenda": "Emenda Individual",
                     "nomeAutor": "Maria",
-                    "valorEmpenhado": "1.234,50",
+                    "valorEmpenhado": "R$ 1.234,50",
                 },
                 {
                     "tipoEmenda": "Emenda de Bancada",
                     "nomeAutor": "Bancada",
                     "valorEmpenhado": "999",
                 },
-                {"tipoEmenda": "Emenda Individual", "autor": "João", "valorEmpenhado": "100"},
+                {"tipoEmenda": "Emenda Individual", "autor": "João", "valorEmpenhado": "- 100"},
                 {"tipoEmenda": "Emenda Individual", "nomeAutor": "", "valorEmpenhado": "100"},
             ],
         ),
@@ -196,6 +196,7 @@ async def test_amendment_ranking_uses_individual_committed_values():
         result = await amendment_ranking(client, 2026, "token", data)
     assert [entry.name for entry in result.entries] == ["Maria", "João"]
     assert result.entries[0].value == Decimal("1234.50")
+    assert result.entries[1].value == Decimal("-100")
     assert result.status == "ready" and result.covered == 2
     empty = Ranking(provider="camara", metric="amendments", year=2026, title="Emendas", notice="")
     assert (await amendment_ranking(httpx.AsyncClient(), 2026, "", empty)).status == "unavailable"

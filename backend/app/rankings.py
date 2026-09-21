@@ -1,5 +1,6 @@
 import asyncio
 import csv
+import re
 from collections import defaultdict
 from collections.abc import Iterable
 from datetime import UTC, datetime
@@ -26,6 +27,13 @@ MetricName = Literal[
     "election_fund",
 ]
 TRANSPARENCY_API = "https://api.portaldatransparencia.gov.br/api-de-dados/emendas"
+
+
+def public_money(value: object) -> Decimal:
+    normalized = re.sub(r"[^0-9,.-]", "", str(value or "0"))
+    return Decimal(normalized.replace(".", "").replace(",", "."))
+
+
 TSE_PARTY = "https://www.tse.jus.br/comunicacao/noticias/2026/Janeiro/fundo-partidario-19-partidos-receberam-mais-de-r-1-bilhao-em-2025"
 TSE_ELECTION = "https://www.tse.jus.br/eleicoes/eleicoes-2026-content/prestacao-de-contas/distribuicao-dos-recursos-do-fundo-especial-de-financiamento-de-campanha-fefc-eleicoes-2026"
 
@@ -273,9 +281,7 @@ async def amendment_ranking(
             name = str(row.get("nomeAutor") or row.get("autor") or "").strip()
             if not name:
                 continue
-            value = Decimal(
-                str(row.get("valorEmpenhado") or "0").replace(".", "").replace(",", ".")
-            )
+            value = public_money(row.get("valorEmpenhado"))
             totals[name] += value
             counts[name] += 1
     entries = [
