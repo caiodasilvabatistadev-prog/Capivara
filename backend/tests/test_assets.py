@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from io import BytesIO
 from zipfile import ZipFile
@@ -9,6 +10,9 @@ from fastapi.testclient import TestClient
 
 from app.assets import (
     _divulga_president_assets,
+    _hub_assets,
+    _hub_payload,
+    _hub_slug,
     _json_money,
     _lula_snapshot,
     _money,
@@ -29,6 +33,7 @@ def archive(name: str, header: str, *rows: str) -> bytes:
 
 @respx.mock
 async def test_declared_assets_matches_name_state_and_tse_identity():
+    respx.get(url__regex=r"https://hubpolitico\.com\.br/.+").respond(404)
     candidates = archive(
         "c.csv", "SQ_CANDIDATO;NM_CANDIDATO;SG_UF", "77;Maria da Silva;SP", "88;Maria da Silva;RJ"
     )
@@ -71,6 +76,7 @@ def test_asset_reader_rejects_invalid_zip():
 
 @respx.mock
 def test_asset_routes_and_invalid_id():
+    respx.get(url__regex=r"https://hubpolitico\.com\.br/.+").respond(404)
     respx.get("https://dadosabertos.camara.leg.br/api/v2/deputados/1").respond(
         200,
         json={
@@ -89,6 +95,7 @@ def test_asset_routes_and_invalid_id():
 
 @respx.mock
 async def test_assets_reports_official_source_unavailable():
+    respx.get(url__regex=r"https://hubpolitico\.com\.br/.+").respond(503)
     respx.get(url__regex=r"https://cdn\.tse\.jus\.br/.+2022\.zip").respond(503)
     person = Politician(id=1, name="Maria", party="X", state="SP", source_url="x")
     async with httpx.AsyncClient() as client:
@@ -97,7 +104,60 @@ async def test_assets_reports_official_source_unavailable():
 
 
 @respx.mock
+async def test_assets_use_hubpolitico_tse_mirror_before_large_archives():
+    payload = {
+        "ano": 2022,
+        "disponivel": True,
+        "bens": [
+            {"tipo": "Apartamento", "descricao": "Imóvel", "valor": 100},
+            {"tipo": "Aplicação", "descricao": "CDB", "valor": 250.5},
+            "inválido",
+        ],
+    }
+    chunk = json.dumps([1, 'prefix"bens":' + json.dumps(payload) + ',"serie":[]'])
+    page = f"<script>self.__next_f.push({chunk})</script>"
+    route = respx.get(
+        "https://hubpolitico.com.br/perfil/beneditadasilva/financeiro/patrimonio/2022"
+    ).respond(200, text=page)
+    person = Politician(id=1, name="Benedita da Silva", party="PT", state="RJ", source_url="x")
+    async with httpx.AsyncClient() as client:
+        result = await declared_assets(client, person)
+    assert route.called and result.available and result.total == Decimal("350.5")
+    assert result.assets[0].description == "CDB"
+    assert "HubPolítico" in result.notice
+    assert _hub_slug("Benedita da Silva") == "beneditadasilva"
+
+
+@respx.mock
+async def test_hub_assets_rejects_unavailable_and_malformed_pages():
+    endpoint = "https://hubpolitico.com.br/perfil/maria/financeiro/patrimonio/2022"
+    route = respx.get(endpoint)
+    person = Politician(id=1, name="Maria", party="X", state="SP", source_url="x")
+    route.respond(503)
+    async with httpx.AsyncClient() as client:
+        assert await _hub_assets(client, person, 2022) is None
+    route.respond(200, text='<script>self.__next_f.push("inválido")</script>')
+    async with httpx.AsyncClient() as client:
+        assert await _hub_assets(client, person, 2022) is None
+    unavailable = json.dumps([1, 'x"bens":{"ano":2020,"disponivel":false,"bens":[]}'])
+    route.respond(200, text=f"<script>self.__next_f.push({unavailable})</script>")
+    async with httpx.AsyncClient() as client:
+        assert await _hub_assets(client, person, 2022) is None
+    assert _hub_payload('<script>self.__next_f.push([1, 2])</script>') is None
+    assert _hub_payload('<script>self.__next_f.push([bad])</script>') is None
+    malformed = json.dumps([1, 'x"bens":not-json'])
+    assert _hub_payload(f"<script>self.__next_f.push({malformed})</script>") is None
+    non_object = json.dumps([1, 'x"bens":[]'])
+    assert _hub_payload(f"<script>self.__next_f.push({non_object})</script>") is None
+    no_list = json.dumps([1, 'x"bens":{"ano":2022,"disponivel":true,"bens":{}}'])
+    route.respond(200, text=f"<script>self.__next_f.push({no_list})</script>")
+    async with httpx.AsyncClient() as client:
+        assert await _hub_assets(client, person, 2022) is None
+
+
+@respx.mock
 async def test_president_assets_use_election_year_and_civil_name():
+    respx.get(url__regex=r"https://hubpolitico\.com\.br/.+").respond(404)
     candidates = archive("c.csv", "SQ_CANDIDATO;NM_CANDIDATO;SG_UF", "99;JAIR MESSIAS BOLSONARO;BR")
     goods = archive(
         "b.csv",

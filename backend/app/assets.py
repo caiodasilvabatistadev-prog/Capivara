@@ -1,5 +1,7 @@
 import asyncio
 import csv
+import json
+import re
 from decimal import Decimal, InvalidOperation
 from io import BytesIO, TextIOWrapper
 from zipfile import BadZipFile, ZipFile
@@ -107,6 +109,70 @@ def _json_money(value: object) -> Decimal:
         return Decimal()
 
 
+def _hub_slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", folded(name))
+
+
+def _hub_payload(page: str) -> dict[str, object] | None:
+    decoded = ""
+    for match in re.finditer(r"self\.__next_f\.push\((\[.*?\])\)</script>", page):
+        try:
+            chunk = json.loads(match.group(1))
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if len(chunk) > 1 and isinstance(chunk[1], str):
+            decoded += chunk[1]
+    marker = '"bens":'
+    position = decoded.find(marker)
+    if position < 0:
+        return None
+    try:
+        payload, _ = json.JSONDecoder().raw_decode(decoded[position + len(marker) :])
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+async def _hub_assets(
+    client: httpx.AsyncClient, person: Politician, year: int
+) -> AssetDisclosure | None:
+    slug = _hub_slug(person.name)
+    page_url = f"https://hubpolitico.com.br/perfil/{slug}/financeiro/patrimonio/{year}"
+    try:
+        response = await client.get(page_url, timeout=30, follow_redirects=True)
+        response.raise_for_status()
+    except httpx.HTTPError:
+        return None
+    payload = _hub_payload(response.text)
+    if not payload or payload.get("ano") != year or not payload.get("disponivel"):
+        return None
+    raw_assets = payload.get("bens")
+    if not isinstance(raw_assets, list):
+        return None
+    assets = [
+        DeclaredAsset(
+            kind=str(item.get("tipo") or "Tipo não informado"),
+            description=str(item.get("descricao") or "Descrição não informada"),
+            value=_json_money(item.get("valor")),
+        )
+        for item in raw_assets
+        if isinstance(item, dict)
+    ]
+    assets.sort(key=lambda item: item.value, reverse=True)
+    return AssetDisclosure(
+        available=True,
+        election_year=year,
+        total=sum((item.value for item in assets), Decimal()),
+        assets=assets,
+        source_url=page_url,
+        notice=(
+            f"Bens declarados ao TSE na candidatura de {year}, reproduzidos pelo HubPolítico "
+            "a partir dos dados eleitorais oficiais. A declaração não comprova propriedade "
+            "ou valor atuais."
+        ),
+    )
+
+
 async def _divulga_president_assets(
     client: httpx.AsyncClient, person: Politician, record: tuple[int, str, str]
 ) -> AssetDisclosure | None:
@@ -199,6 +265,10 @@ async def declared_assets(
         wanted = folded(official_name)
     if person.provider.startswith("tse"):
         year = int(person.provider.removeprefix("tse"))
+    if not person.provider.startswith("tse"):
+        hub_disclosure = await _hub_assets(client, person, year)
+        if hub_disclosure is not None:
+            return hub_disclosure
     source = f"https://dadosabertos.tse.jus.br/dataset/bens-de-candidatos-{year}"
     candidates_url = (
         f"https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_{year}.zip"
