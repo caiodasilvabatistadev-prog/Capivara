@@ -16,3 +16,9 @@ test("organiza as consultas do perfil e navega para a seção escolhida", async 
   expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
   target.remove();
 });
+
+test("muda os indicadores conforme a competência do poder", () => {
+  render(<DashboardMenu person={{ id: 1, provider: "executivo", name: "Maria", party: "", state: "Brasil", power: "executivo", email: null, source_url: "x" }} />);
+  expect(screen.getByRole("button", { name: /Atos e entregas/ })).toBeVisible();
+  expect(screen.queryByRole("button", { name: /Emendas parlamentares/ })).not.toBeInTheDocument();
+});
