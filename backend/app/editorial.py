@@ -71,6 +71,44 @@ class PublicContext(BaseModel):
 
 
 CATALOG: dict[tuple[str, int], PublicContext] = {
+    ("presidentes", 100): PublicContext(
+        subject_name="Luiz Inácio Lula da Silva",
+        reviewed_at=date(2026, 9, 20),
+        cases=[
+            JudicialCase(
+                title="Operação Lava Jato: processos contra Lula e anulação das condenações",
+                summary=(
+                    "Lula foi condenado nos casos do tríplex do Guarujá e do sítio de Atibaia. "
+                    "Em 2021, o STF confirmou que a 13ª Vara Federal de Curitiba não era "
+                    "competente para julgar as ações e anulou as decisões nos casos do tríplex, "
+                    "sítio, sede e doações ao Instituto Lula. No caso do tríplex, o STF também "
+                    "manteve o reconhecimento da parcialidade do então juiz Sergio Moro. "
+                    "Anulação não é absolvição sobre o mérito, mas as condenações anuladas não "
+                    "podem ser apresentadas como condenações vigentes."
+                ),
+                category="corrupcao",
+                status="anulado",
+                court="Supremo Tribunal Federal",
+                case_number="HC 193726 e HC 164493",
+                status_as_of=date(2021, 6, 23),
+                final_judgment=False,
+                official_source=Source(
+                    publisher="Supremo Tribunal Federal",
+                    published_at=date(2021, 6, 23),
+                    url=HttpUrl(
+                        "https://portal.stf.jus.br/noticias/verNoticiaDetalhe.asp?idConteudo=468086"
+                    ),
+                ),
+                journalism=Source(
+                    publisher="Intercept Brasil — índice da Vaza Jato",
+                    published_at=date(2020, 1, 20),
+                    url=HttpUrl(
+                        "https://www.intercept.com.br/2020/01/20/linha-do-tempo-vaza-jato/"
+                    ),
+                ),
+            )
+        ],
+    ),
     ("senado", 6331): PublicContext(
         subject_name="Sergio Moro",
         reviewed_at=date(2026, 9, 18),

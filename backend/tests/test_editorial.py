@@ -65,6 +65,24 @@ def test_identity_and_missing_coverage():
     assert "não atesta" in data.notice
 
 
+def test_lava_jato_record_states_annulment_and_sources():
+    data = context_for(
+        Politician(
+            id=100,
+            provider="presidentes",
+            power="executivo",
+            name="Luiz Inácio Lula da Silva",
+            party="Não se aplica",
+            state="Brasil",
+            source_url="https://www.gov.br/planalto",
+        )
+    )
+    case = data.cases[0]
+    assert case.status == "anulado" and "não é absolvição" in case.summary
+    assert case.official_source.url.host == "portal.stf.jus.br"
+    assert case.journalism.url.host == "www.intercept.com.br"
+
+
 @respx.mock
 def test_context_of_reviewed_record():
     respx.get(SENATE).respond(
