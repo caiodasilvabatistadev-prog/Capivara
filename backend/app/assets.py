@@ -76,6 +76,15 @@ class AssetHistory(BaseModel):
     total: Decimal
 
 
+class AssetSourceCheck(BaseModel):
+    name: str
+    status: str
+    url: str
+    year: int | None = None
+    total: Decimal | None = None
+    note: str
+
+
 class AssetDisclosure(BaseModel):
     available: bool
     election_year: int | None = None
@@ -83,6 +92,8 @@ class AssetDisclosure(BaseModel):
     assets: list[DeclaredAsset] = Field(default_factory=list)
     history: list[AssetHistory] = Field(default_factory=list)
     growth_percentage: Decimal | None = None
+    verification: str = "unverified"
+    source_checks: list[AssetSourceCheck] = Field(default_factory=list)
     source_url: str
     notice: str
 
@@ -191,6 +202,17 @@ async def _hub_assets(
         assets=assets,
         history=history,
         growth_percentage=growth,
+        verification="single_source",
+        source_checks=[
+            AssetSourceCheck(
+                name="HubPolítico",
+                status="found",
+                url=page_url,
+                year=year,
+                total=sum((item.value for item in assets), Decimal()),
+                note="Publicação localizada e associada ao nome e ao ano consultados.",
+            )
+        ],
         source_url=page_url,
         notice=(
             f"Patrimônio informado na cobertura eleitoral de {year} do HubPolítico. "
@@ -278,6 +300,18 @@ async def declared_assets(
         available=False,
         election_year=year,
         source_url=f"https://hubpolitico.com.br/perfil/{_hub_slug(person.name)}/financeiro/patrimonio/{year}",
+        source_checks=[
+            AssetSourceCheck(
+                name="HubPolítico",
+                status="not_found",
+                url=(
+                    "https://hubpolitico.com.br/perfil/"
+                    f"{_hub_slug(person.name)}/financeiro/patrimonio/{year}"
+                ),
+                year=year,
+                note="Nenhuma publicação com correspondência segura foi encontrada.",
+            )
+        ],
         notice=(
             "Não encontramos uma publicação alternativa de patrimônio com correspondência "
             "segura para este perfil. Nenhum valor foi preenchido a partir do TSE."

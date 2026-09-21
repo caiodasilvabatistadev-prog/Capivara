@@ -111,6 +111,9 @@ async def test_assets_use_hubpolitico_tse_mirror_before_large_archives():
     assert route.called and result.available and result.total == Decimal("350.5")
     assert result.assets[0].description == "CDB"
     assert result.growth_percentage == 50 and len(result.history) == 2
+    assert result.verification == "single_source"
+    assert result.source_checks[0].name == "HubPolítico"
+    assert result.source_checks[0].status == "found"
     assert "HubPolítico" in result.notice
     assert _hub_slug("Benedita da Silva") == "beneditadasilva"
 
@@ -267,3 +270,4 @@ async def test_president_without_open_asset_series_explains_limit():
         result = await declared_assets(client, person)
     assert not result.available and result.election_year == 2022
     assert "publicação alternativa" in result.notice
+    assert result.source_checks[0].status == "not_found"
