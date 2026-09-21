@@ -26,6 +26,42 @@ PRESIDENT_DIVULGA_RECORDS: dict[str, tuple[int, str, str]] = {
     "luiz inacio lula da silva": (2022, "2040602022", "280001607829"),
 }
 
+# Snapshot of the official DivulgaCandContas response, last updated there on 2022-08-06.
+# It keeps the public profile useful when the TSE host rejects server-to-server TLS requests.
+LULA_2022_ASSETS = (
+    ("VGBL - Vida Gerador de Benefício Livre", "VGBL", "5570798.99"),
+    ("Terreno", "Terreno", "265000"),
+    (
+        "OUTROS BENS E DIREITOS",
+        "Devolução de valores bloqueados por determinação judicial",
+        "250722.03",
+    ),
+    ("Construção", "Casa em construção", "246918.82"),
+    ("Crédito decorrente de empréstimo", "Crédito decorrente de empréstimo pessoal", "200000"),
+    ("Aplicação de renda fixa (CDB, RDB e outros)", "CDB", "185744.81"),
+    (
+        "OUTROS BENS E DIREITOS",
+        "Crédito decorrente de procedência de demanda judicial",
+        "179298.96",
+    ),
+    ("Terreno", "Terreno", "130000"),
+    ("Apartamento", "Apartamento", "94571.25"),
+    ("Veículo automotor terrestre: caminhão, automóvel, moto, etc.", "Automóvel", "85000"),
+    ("Crédito decorrente de empréstimo", "Crédito decorrente de empréstimo pessoal", "50000"),
+    ("Quotas ou quinhões de capital", "Empresa", "49000"),
+    ("Veículo automotor terrestre: caminhão, automóvel, moto, etc.", "Automóvel", "48475"),
+    ("Apartamento", "Apartamento", "19167.34"),
+    ("Apartamento", "Apartamento", "19167.34"),
+    ("Depósito bancário em conta corrente no País", "Saldo em conta corrente", "18681.23"),
+    ("Caderneta de poupança", "Poupança", "4719.20"),
+    ("Terreno", "Terreno", "2733.45"),
+    ("Depósito bancário em conta corrente no País", "Saldo em conta corrente", "2180"),
+    ("Fundo de Curto Prazo", "Fundo de Curto Prazo", "1213.17"),
+    ("Outras aplicações e investimentos", "Aplicação financeira", "333.17"),
+    ("Depósito bancário em conta corrente no País", "Saldo em conta corrente", "1"),
+    ("Caderneta de poupança", "Poupança", "0.02"),
+)
+
 
 class DeclaredAsset(BaseModel):
     kind: str
@@ -114,6 +150,29 @@ async def _divulga_president_assets(
     )
 
 
+def _lula_snapshot() -> AssetDisclosure:
+    year, election_id, candidate_id = PRESIDENT_DIVULGA_RECORDS["luiz inacio lula da silva"]
+    assets = [
+        DeclaredAsset(kind=kind, description=description, value=Decimal(value))
+        for kind, description, value in LULA_2022_ASSETS
+    ]
+    return AssetDisclosure(
+        available=True,
+        election_year=year,
+        total=sum((item.value for item in assets), Decimal()),
+        assets=assets,
+        source_url=(
+            "https://divulgacandcontas.tse.jus.br/divulga/#/candidato/"
+            f"{year}/{election_id}/BR/{candidate_id}/bens"
+        ),
+        notice=(
+            "Bens declarados ao TSE na candidatura de 2022. Como a consulta ao vivo está "
+            "indisponível, exibimos o retrato da resposta oficial do DivulgaCandContas, "
+            "atualizada em 06/08/2022. A declaração não comprova propriedade ou valor atuais."
+        ),
+    )
+
+
 async def declared_assets(
     client: httpx.AsyncClient, person: Politician, year: int = 2022
 ) -> AssetDisclosure:
@@ -124,6 +183,7 @@ async def declared_assets(
             disclosure = await _divulga_president_assets(client, person, divulga_record)
             if disclosure is not None:
                 return disclosure
+            return _lula_snapshot()
         record = PRESIDENT_ASSET_RECORDS.get(wanted)
         if record is None:
             return AssetDisclosure(

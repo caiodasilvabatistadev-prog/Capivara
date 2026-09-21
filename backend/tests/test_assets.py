@@ -1,3 +1,4 @@
+from decimal import Decimal
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -6,7 +7,14 @@ import pytest
 import respx
 from fastapi.testclient import TestClient
 
-from app.assets import _divulga_president_assets, _json_money, _money, _rows, declared_assets
+from app.assets import (
+    _divulga_president_assets,
+    _json_money,
+    _lula_snapshot,
+    _money,
+    _rows,
+    declared_assets,
+)
 from app.main import app
 from app.models import Politician
 
@@ -157,7 +165,6 @@ async def test_lula_assets_use_individual_divulga_cand_contas():
 @respx.mock
 async def test_lula_assets_fall_back_when_individual_service_fails():
     respx.get(url__regex=r"https://divulgacandcontas\.tse\.jus\.br/.+").respond(503)
-    respx.get(url__regex=r"https://cdn\.tse\.jus\.br/.+2022\.zip").respond(503)
     person = Politician(
         id=100,
         provider="presidentes",
@@ -169,7 +176,10 @@ async def test_lula_assets_fall_back_when_individual_service_fails():
     )
     async with httpx.AsyncClient() as client:
         result = await declared_assets(client, person)
-    assert not result.available and result.election_year == 2022
+    assert result.available and result.election_year == 2022
+    assert len(result.assets) == 23
+    assert result.total == _lula_snapshot().total == Decimal("7423725.78")
+    assert "retrato da resposta oficial" in result.notice
 
 
 @respx.mock
