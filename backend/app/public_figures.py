@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from app.dashboard import Dashboard
+from app.dashboard import Dashboard, ReportBlock, ReportSection
 from app.directories import DirectoryProvider, folded, profile
 from app.models import Politician
 from app.providers import CamaraProvider
@@ -18,6 +18,7 @@ class Figure:
     source_url: str
     state: str = "Brasil"
     note: str = "Registro biográfico e institucional."
+    actions: tuple[tuple[str, str, str, str, str], ...] = ()
 
 
 STF_FIGURES = [
@@ -102,11 +103,43 @@ STF_FIGURES = [
 
 PRESIDENTS = [
     Figure(
+        100,
+        "Luiz Inácio Lula da Silva",
+        "Presidente da República",
+        "Presidência da República",
+        "https://www.gov.br/planalto/pt-br/conheca-a-presidencia/biografia-do-presidente",
+        actions=(
+            (
+                "Obra entregue",
+                "Lote 2 do Canal Acauã–Araçagi",
+                "30/08/2024",
+                "Trecho inaugurado",
+                "https://www.gov.br/incra/pt-br/assuntos/noticias/inaugurado-trecho-da-transposicao-do-sao-francisco-que-atendera-tres-assentamentos-paraibanos",
+            ),
+            (
+                "Programa",
+                "Novo PAC Seleções",
+                "07/03/2024",
+                "6.778 obras e equipamentos selecionados nessa etapa",
+                "https://www.gov.br/transferegov/pt-br/noticias/noticias/2024/marco/propostas-selecionadas-para-pac-selecoes-foram-inscritas-pelo-transferegov",
+            ),
+        ),
+    ),
+    Figure(
         101,
         "José Sarney",
         "Ex-presidente da República",
         "Presidência da República",
         "https://www.gov.br/planalto/pt-br/conheca-a-presidencia/acervo/galeria-de-presidentes",
+        actions=(
+            (
+                "Projeto iniciado",
+                "Ferrovia Norte–Sul",
+                "1987",
+                "Projeto anunciado no governo; execução atravessou governos posteriores",
+                "https://www.gov.br/casacivil/pt-br/ocultadas/orgaos/seppi/noticias-1/governo-federal-inaugura-trecho-da-ferrovia-norte-sul-em-goias",
+            ),
+        ),
     ),
     Figure(
         102,
@@ -122,6 +155,15 @@ PRESIDENTS = [
         "Presidência da República",
         "https://www.gov.br/planalto/pt-br/conheca-a-presidencia/acervo/galeria-de-presidentes",
         note="Perfil histórico. Falecido em 2011.",
+        actions=(
+            (
+                "Política econômica",
+                "Plano Real",
+                "01/07/1994",
+                "Nova moeda implantada durante o governo",
+                "https://www.bcb.gov.br/controleinflacao/30anosreal",
+            ),
+        ),
     ),
     Figure(
         104,
@@ -129,6 +171,15 @@ PRESIDENTS = [
         "Ex-presidente da República",
         "Presidência da República",
         "https://www.gov.br/planalto/pt-br/conheca-a-presidencia/acervo/galeria-de-presidentes",
+        actions=(
+            (
+                "Lei sancionada",
+                "Lei de Responsabilidade Fiscal",
+                "04/05/2000",
+                "Lei Complementar nº 101 sancionada",
+                "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp101.htm",
+            ),
+        ),
     ),
     Figure(
         105,
@@ -143,6 +194,15 @@ PRESIDENTS = [
         "Ex-presidente da República",
         "Presidência da República",
         "https://www.gov.br/planalto/pt-br/conheca-a-presidencia/acervo/galeria-de-presidentes",
+        actions=(
+            (
+                "Obra entregue",
+                "Eixo Leste da Integração do Rio São Francisco",
+                "10/03/2017",
+                "Últimas estruturas acionadas; obra iniciada em governos anteriores",
+                "https://www.gov.br/mdr/pt-br/noticias/entrega-do-eixo-leste-do-sao-francisco-e-momento-historico-diz-helder-barbalho",
+            ),
+        ),
     ),
     Figure(
         107,
@@ -150,6 +210,15 @@ PRESIDENTS = [
         "Ex-presidente da República",
         "Presidência da República",
         "https://www.gov.br/planalto/pt-br/conheca-a-presidencia/acervo/galeria-de-presidentes",
+        actions=(
+            (
+                "Obra entregue",
+                "Último trecho de canal do Eixo Norte do Projeto São Francisco",
+                "21/10/2021",
+                "Trecho de oito quilômetros inaugurado; empreendimento atravessou vários governos",
+                "https://www.gov.br/mdr/pt-br/noticias/jornada-das-aguas-na-paraiba-governo-federal-inaugura-ultimo-trecho-de-canal-do-projeto-de-integracao-do-rio-sao-francisco",
+            ),
+        ),
     ),
 ]
 
@@ -161,8 +230,9 @@ class CatalogProvider(DirectoryProvider):
         self.figures = figures
 
     async def listing(self) -> list[Dashboard]:
-        return [
-            profile(
+        result = []
+        for item in self.figures:
+            data = profile(
                 Politician(
                     id=item.id,
                     provider=self.provider,
@@ -176,8 +246,25 @@ class CatalogProvider(DirectoryProvider):
                 ),
                 [item.note, f"Fonte oficial: {item.source_url}"],
             )
-            for item in self.figures
-        ]
+            if item.actions:
+                data.sections.append(
+                    ReportSection(
+                        title="Obras, programas e entregas documentadas",
+                        blocks=[
+                            ReportBlock(
+                                kind="table",
+                                text=title,
+                                rows=[
+                                    ["Categoria", "Data", "Situação", "Fonte oficial"],
+                                    [category, date, status, source],
+                                ],
+                            )
+                            for category, title, date, status, source in item.actions
+                        ],
+                    )
+                )
+            result.append(data)
+        return result
 
 
 class HistoricalCamaraProvider(CamaraProvider):

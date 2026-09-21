@@ -11,6 +11,17 @@ from starlette.concurrency import run_in_threadpool
 from app.directories import folded
 from app.models import Politician
 
+PRESIDENT_ASSET_RECORDS: dict[str, tuple[int, str] | None] = {
+    "luiz inacio lula da silva": (2022, "LUIZ INACIO LULA DA SILVA"),
+    "jair bolsonaro": (2022, "JAIR MESSIAS BOLSONARO"),
+    "fernando collor de mello": (2022, "FERNANDO AFFONSO COLLOR DE MELLO"),
+    "dilma rousseff": (2014, "DILMA VANA ROUSSEFF"),
+    "michel temer": (2014, "MICHEL MIGUEL ELIAS TEMER LULIA"),
+    "itamar franco": (2006, "ITAMAR AUGUSTO CAUTIERO FRANCO"),
+    "fernando henrique cardoso": None,
+    "jose sarney": None,
+}
+
 
 class DeclaredAsset(BaseModel):
     kind: str
@@ -52,6 +63,21 @@ def _money(value: str) -> Decimal:
 async def declared_assets(
     client: httpx.AsyncClient, person: Politician, year: int = 2022
 ) -> AssetDisclosure:
+    wanted = folded(person.name)
+    if person.provider == "presidentes":
+        record = PRESIDENT_ASSET_RECORDS.get(wanted)
+        if record is None:
+            return AssetDisclosure(
+                available=False,
+                source_url="https://dadosabertos.tse.jus.br/dataset/?groups=candidatos",
+                notice=(
+                    "Não há declaração eleitoral em formato aberto vinculada com segurança "
+                    "a este perfil presidencial. As séries de bens do TSE começam em eleições "
+                    "mais recentes e só existem quando a pessoa registrou candidatura."
+                ),
+            )
+        year, official_name = record
+        wanted = folded(official_name)
     if person.provider.startswith("tse"):
         year = int(person.provider.removeprefix("tse"))
     source = f"https://dadosabertos.tse.jus.br/dataset/bens-de-candidatos-{year}"
@@ -81,12 +107,11 @@ async def declared_assets(
         run_in_threadpool(_rows, candidate_response.content),
         run_in_threadpool(_rows, asset_response.content),
     )
-    wanted = folded(person.name)
     matches = [
         row
         for row in candidates
         if folded(row.get("NM_CANDIDATO", "")) == wanted
-        and (not person.state or row.get("SG_UF") == person.state)
+        and (len(person.state) != 2 or row.get("SG_UF") == person.state)
     ]
     if person.provider.startswith("tse"):
         matches = [row for row in candidates if row.get("SQ_CANDIDATO") == str(person.id)]

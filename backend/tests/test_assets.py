@@ -86,3 +86,47 @@ async def test_assets_reports_official_source_unavailable():
     async with httpx.AsyncClient() as client:
         result = await declared_assets(client, person)
     assert not result.available and "não pôde" in result.notice
+
+
+@respx.mock
+async def test_president_assets_use_election_year_and_civil_name():
+    candidates = archive("c.csv", "SQ_CANDIDATO;NM_CANDIDATO;SG_UF", "99;JAIR MESSIAS BOLSONARO;BR")
+    goods = archive(
+        "b.csv",
+        "SQ_CANDIDATO;DS_TIPO_BEM_CANDIDATO;DS_BEM_CANDIDATO;VR_BEM_CANDIDATO",
+        "99;Casa;Imóvel;10,00",
+    )
+    respx.get(url__regex=r"https://cdn\.tse\.jus\.br/.+consulta_cand_2022\.zip").respond(
+        content=candidates
+    )
+    respx.get(url__regex=r"https://cdn\.tse\.jus\.br/.+bem_candidato_2022\.zip").respond(
+        content=goods
+    )
+    person = Politician(
+        id=107,
+        provider="presidentes",
+        power="executivo",
+        name="Jair Bolsonaro",
+        party="Não se aplica",
+        state="Brasil",
+        source_url="x",
+    )
+    async with httpx.AsyncClient() as client:
+        result = await declared_assets(client, person)
+    assert result.available and result.election_year == 2022 and result.total == 10
+
+
+async def test_president_without_open_asset_series_explains_limit():
+    person = Politician(
+        id=101,
+        provider="presidentes",
+        power="executivo",
+        name="José Sarney",
+        party="Não se aplica",
+        state="Brasil",
+        source_url="x",
+    )
+    async with httpx.AsyncClient() as client:
+        result = await declared_assets(client, person)
+    assert not result.available and result.election_year is None
+    assert "formato aberto" in result.notice

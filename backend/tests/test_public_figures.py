@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from fastapi import HTTPException
 
-from app.public_figures import CatalogProvider, Figure, HistoricalCamaraProvider
+from app.public_figures import PRESIDENTS, CatalogProvider, Figure, HistoricalCamaraProvider
 
 
 @pytest.mark.asyncio
@@ -18,6 +18,15 @@ async def test_catalog_search_dashboard_and_missing():
     assert (await provider.dashboard(1)).politician.provider == "stf"
     with pytest.raises(HTTPException):
         await provider.get(2)
+
+
+@pytest.mark.asyncio
+async def test_presidential_dashboard_has_current_president_and_documented_actions():
+    provider = CatalogProvider(AsyncMock(), "presidentes", PRESIDENTS)
+    current = await provider.dashboard(100)
+    assert current.politician.name == "Luiz Inácio Lula da Silva"
+    section = next(item for item in current.sections if item.title.startswith("Obras"))
+    assert section.blocks[0].rows[0][-1] == "Fonte oficial"
 
 
 @pytest.mark.asyncio
