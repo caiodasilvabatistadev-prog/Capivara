@@ -6,7 +6,7 @@ import pytest
 import respx
 from fastapi.testclient import TestClient
 
-from app.assets import _money, _rows, declared_assets
+from app.assets import _divulga_president_assets, _json_money, _money, _rows, declared_assets
 from app.main import app
 from app.models import Politician
 
@@ -114,6 +114,87 @@ async def test_president_assets_use_election_year_and_civil_name():
     async with httpx.AsyncClient() as client:
         result = await declared_assets(client, person)
     assert result.available and result.election_year == 2022 and result.total == 10
+
+
+@respx.mock
+async def test_lula_assets_use_individual_divulga_cand_contas():
+    respx.get(
+        "https://divulgacandcontas.tse.jus.br/divulga/rest/v1/candidatura/buscar/"
+        "2022/BR/2040602022/candidato/280001607829"
+    ).respond(
+        200,
+        json={
+            "nomeCompleto": "LUIZ INÁCIO LULA DA SILVA",
+            "bens": [
+                {
+                    "descricaoDeTipoDeBem": "Apartamento",
+                    "descricao": "Imóvel residencial",
+                    "valor": 100.5,
+                },
+                {"descricaoDeTipoDeBem": "Aplicação", "descricao": "CDB", "valor": 200},
+                "registro inválido",
+            ],
+        },
+    )
+    person = Politician(
+        id=100,
+        provider="presidentes",
+        power="executivo",
+        name="Luiz Inácio Lula da Silva",
+        party="Não se aplica",
+        state="Brasil",
+        source_url="x",
+    )
+    async with httpx.AsyncClient() as client:
+        result = await declared_assets(client, person)
+    assert result.available and result.total == 300.5
+    assert result.assets[0].description == "CDB"
+    assert "DivulgaCandContas" in result.notice
+    assert result.source_url.endswith("/280001607829/bens")
+    assert _json_money("inválido") == 0
+
+
+@respx.mock
+async def test_lula_assets_fall_back_when_individual_service_fails():
+    respx.get(url__regex=r"https://divulgacandcontas\.tse\.jus\.br/.+").respond(503)
+    respx.get(url__regex=r"https://cdn\.tse\.jus\.br/.+2022\.zip").respond(503)
+    person = Politician(
+        id=100,
+        provider="presidentes",
+        power="executivo",
+        name="Luiz Inácio Lula da Silva",
+        party="Não se aplica",
+        state="Brasil",
+        source_url="x",
+    )
+    async with httpx.AsyncClient() as client:
+        result = await declared_assets(client, person)
+    assert not result.available and result.election_year == 2022
+
+
+@respx.mock
+async def test_divulga_assets_rejects_error_invalid_json_and_wrong_person():
+    endpoint = (
+        "https://divulgacandcontas.tse.jus.br/divulga/rest/v1/candidatura/buscar/"
+        "2022/BR/election/candidato/candidate"
+    )
+    route = respx.get(endpoint)
+    person = Politician(id=1, name="Maria", party="X", state="BR", source_url="x")
+    route.respond(503)
+    async with httpx.AsyncClient() as client:
+        assert (
+            await _divulga_president_assets(client, person, (2022, "election", "candidate")) is None
+        )
+    route.respond(200, content=b"not-json")
+    async with httpx.AsyncClient() as client:
+        assert (
+            await _divulga_president_assets(client, person, (2022, "election", "candidate")) is None
+        )
+    route.respond(200, json={"nomeCompleto": "Outra pessoa"})
+    async with httpx.AsyncClient() as client:
+        assert (
+            await _divulga_president_assets(client, person, (2022, "election", "candidate")) is None
+        )
 
 
 async def test_president_without_open_asset_series_explains_limit():

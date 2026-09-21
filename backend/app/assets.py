@@ -22,6 +22,10 @@ PRESIDENT_ASSET_RECORDS: dict[str, tuple[int, str] | None] = {
     "jose sarney": None,
 }
 
+PRESIDENT_DIVULGA_RECORDS: dict[str, tuple[int, str, str]] = {
+    "luiz inacio lula da silva": (2022, "2040602022", "280001607829"),
+}
+
 
 class DeclaredAsset(BaseModel):
     kind: str
@@ -60,11 +64,66 @@ def _money(value: str) -> Decimal:
         return Decimal()
 
 
+def _json_money(value: object) -> Decimal:
+    try:
+        return Decimal(str(value or 0))
+    except InvalidOperation:
+        return Decimal()
+
+
+async def _divulga_president_assets(
+    client: httpx.AsyncClient, person: Politician, record: tuple[int, str, str]
+) -> AssetDisclosure | None:
+    year, election_id, candidate_id = record
+    endpoint = (
+        "https://divulgacandcontas.tse.jus.br/divulga/rest/v1/candidatura/buscar/"
+        f"{year}/BR/{election_id}/candidato/{candidate_id}"
+    )
+    try:
+        response = await client.get(endpoint, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+    except (httpx.HTTPError, ValueError):
+        return None
+    if folded(str(data.get("nomeCompleto") or "")) != folded(person.name):
+        return None
+    assets = [
+        DeclaredAsset(
+            kind=str(item.get("descricaoDeTipoDeBem") or "Tipo não informado"),
+            description=str(item.get("descricao") or "Descrição não informada"),
+            value=_json_money(item.get("valor")),
+        )
+        for item in data.get("bens", [])
+        if isinstance(item, dict)
+    ]
+    assets.sort(key=lambda item: item.value, reverse=True)
+    source = (
+        "https://divulgacandcontas.tse.jus.br/divulga/#/candidato/"
+        f"{year}/{election_id}/BR/{candidate_id}/bens"
+    )
+    return AssetDisclosure(
+        available=True,
+        election_year=year,
+        total=sum((item.value for item in assets), Decimal()),
+        assets=assets,
+        source_url=source,
+        notice=(
+            f"Bens declarados ao TSE na candidatura de {year}, consultados individualmente "
+            "no DivulgaCandContas. A declaração não comprova propriedade ou valor atuais."
+        ),
+    )
+
+
 async def declared_assets(
     client: httpx.AsyncClient, person: Politician, year: int = 2022
 ) -> AssetDisclosure:
     wanted = folded(person.name)
     if person.provider == "presidentes":
+        divulga_record = PRESIDENT_DIVULGA_RECORDS.get(wanted)
+        if divulga_record:
+            disclosure = await _divulga_president_assets(client, person, divulga_record)
+            if disclosure is not None:
+                return disclosure
         record = PRESIDENT_ASSET_RECORDS.get(wanted)
         if record is None:
             return AssetDisclosure(
