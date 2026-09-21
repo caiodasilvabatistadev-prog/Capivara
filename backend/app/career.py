@@ -148,7 +148,7 @@ async def wikipedia_career(client: httpx.AsyncClient, person: Politician) -> Car
                     "action": "wbgetentities",
                     "ids": "|".join(ids),
                     "props": "labels",
-                    "languages": "pt|pt-br|en",
+                    "languages": "pt|pt-br",
                     "format": "json",
                 },
                 headers=HEADERS,
@@ -157,16 +157,19 @@ async def wikipedia_career(client: httpx.AsyncClient, person: Politician) -> Car
             for entity_id, value in label_response.json().get("entities", {}).items():
                 published = value.get("labels", {})
                 label = next(
-                    (published[key]["value"] for key in ("pt", "pt-br", "en") if key in published),
-                    entity_id,
+                    (published[key]["value"] for key in ("pt", "pt-br") if key in published),
+                    "",
                 )
-                labels[entity_id] = str(label)
+                if label:
+                    labels[entity_id] = str(label)
         page_url = str(
             ((summary_data.get("content_urls") or {}).get("desktop") or {}).get("page")
             or f"{WIKIPEDIA}/wiki/{quote(title)}"
         )
-        professions = [CareerItem(title=labels.get(value, value)) for value in profession_ids]
-        offices = [CareerItem(title=labels.get(value, value)) for value in office_ids]
+        professions = [
+            CareerItem(title=labels[value]) for value in profession_ids if value in labels
+        ]
+        offices = [CareerItem(title=labels[value]) for value in office_ids if value in labels]
         return Career(
             available=bool(professions or offices),
             professions=professions,

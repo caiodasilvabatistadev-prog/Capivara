@@ -98,7 +98,10 @@ async def test_wikimedia_fallback_for_non_camara_profile():
             "entities": {
                 "Q1": {
                     "claims": {
-                        "P106": [{"mainsnak": {"datavalue": {"value": {"id": "Q2"}}}}],
+                        "P106": [
+                            {"mainsnak": {"datavalue": {"value": {"id": "Q2"}}}},
+                            {"mainsnak": {"datavalue": {"value": {"id": "Q4"}}}},
+                        ],
                         "P39": [{"mainsnak": {"datavalue": {"value": {"id": "Q3"}}}}],
                     }
                 }
@@ -111,6 +114,7 @@ async def test_wikimedia_fallback_for_non_camara_profile():
             "entities": {
                 "Q2": {"labels": {"pt": {"value": "Metalúrgica"}}},
                 "Q3": {"labels": {"pt": {"value": "Presidente do Brasil"}}},
+                "Q4": {"labels": {"en": {"value": "English only"}}},
             }
         },
     )
@@ -119,6 +123,7 @@ async def test_wikimedia_fallback_for_non_camara_profile():
     assert result.available
     assert result.source_kind == "complementary"
     assert result.source_name == "Wikidata e Wikipédia"
+    assert len(result.professions) == 1
     assert result.professions[0].title == "Metalúrgica"
     assert result.previous_offices[0].title == "Presidente do Brasil"
 
@@ -174,9 +179,7 @@ def test_career_route_and_invalid_id():
     respx.get("https://dadosabertos.camara.leg.br/api/v2/deputados/1/mandatosExternos").respond(
         200, json={"dados": []}
     )
-    respx.get("https://pt.wikipedia.org/w/rest.php/v1/search/page").respond(
-        200, json={"pages": []}
-    )
+    respx.get("https://pt.wikipedia.org/w/rest.php/v1/search/page").respond(200, json={"pages": []})
     with TestClient(app) as client:
         assert client.get("/politicians/camara/1/career").status_code == 200
         assert client.get("/politicians/camara/0/career").status_code == 422
