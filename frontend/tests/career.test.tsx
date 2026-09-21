@@ -19,3 +19,11 @@ test("explica lacuna e erro de consulta", async () => {
   rerender(<Career person={{ ...person, id: 2 }} />);
   expect(await screen.findByRole("alert")).toHaveTextContent("indisponível");
 });
+
+test("identifica e liga a fonte complementar Wikimedia", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ available: true, professions: [{ title: "Metalúrgico" }], previous_offices: [{ title: "Presidente do Brasil" }], notice: "Informações complementares.", source_kind: "complementary", source_name: "Wikidata e Wikipédia", source_url: "https://pt.wikipedia.org/wiki/Lula" }) }));
+  render(<Career person={{ ...person, provider: "presidentes" }} />);
+  expect(await screen.findByText("Profissões registradas")).toBeVisible();
+  expect(screen.getByText("Cargos públicos registrados")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Ver Wikidata e Wikipédia" })).toHaveAttribute("href", "https://pt.wikipedia.org/wiki/Lula");
+});
