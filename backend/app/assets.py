@@ -1,4 +1,3 @@
-import asyncio
 import csv
 import json
 import re
@@ -8,7 +7,6 @@ from zipfile import BadZipFile, ZipFile
 
 import httpx
 from pydantic import BaseModel, Field
-from starlette.concurrency import run_in_threadpool
 
 from app.directories import folded
 from app.models import Politician
@@ -166,8 +164,8 @@ async def _hub_assets(
         assets=assets,
         source_url=page_url,
         notice=(
-            f"Bens declarados ao TSE na candidatura de {year}, reproduzidos pelo HubPolítico "
-            "a partir dos dados eleitorais oficiais. A declaração não comprova propriedade "
+            f"Patrimônio informado na cobertura eleitoral de {year} do HubPolítico. "
+            "Os valores retratam a publicação daquela eleição e não comprovam propriedade "
             "ou valor atuais."
         ),
     )
@@ -242,88 +240,17 @@ def _lula_snapshot() -> AssetDisclosure:
 async def declared_assets(
     client: httpx.AsyncClient, person: Politician, year: int = 2022
 ) -> AssetDisclosure:
-    wanted = folded(person.name)
-    if person.provider == "presidentes":
-        divulga_record = PRESIDENT_DIVULGA_RECORDS.get(wanted)
-        if divulga_record:
-            disclosure = await _divulga_president_assets(client, person, divulga_record)
-            if disclosure is not None:
-                return disclosure
-            return _lula_snapshot()
-        record = PRESIDENT_ASSET_RECORDS.get(wanted)
-        if record is None:
-            return AssetDisclosure(
-                available=False,
-                source_url="https://dadosabertos.tse.jus.br/dataset/?groups=candidatos",
-                notice=(
-                    "Não há declaração eleitoral em formato aberto vinculada com segurança "
-                    "a este perfil presidencial. As séries de bens do TSE começam em eleições "
-                    "mais recentes e só existem quando a pessoa registrou candidatura."
-                ),
-            )
-        year, official_name = record
-        wanted = folded(official_name)
     if person.provider.startswith("tse"):
         year = int(person.provider.removeprefix("tse"))
-    if not person.provider.startswith("tse"):
-        hub_disclosure = await _hub_assets(client, person, year)
-        if hub_disclosure is not None:
-            return hub_disclosure
-    source = f"https://dadosabertos.tse.jus.br/dataset/bens-de-candidatos-{year}"
-    candidates_url = (
-        f"https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_{year}.zip"
-    )
-    assets_url = (
-        f"https://cdn.tse.jus.br/estatistica/sead/odsele/bem_candidato/bem_candidato_{year}.zip"
-    )
-    try:
-        candidate_response, asset_response = await asyncio.gather(
-            client.get(candidates_url, timeout=60), client.get(assets_url, timeout=60)
-        )
-        candidate_response.raise_for_status()
-        asset_response.raise_for_status()
-    except httpx.HTTPError:
-        return AssetDisclosure(
-            available=False,
-            election_year=year,
-            source_url=source,
-            notice=(
-                f"A declaração de bens de {year} não pôde ser consultada agora. "
-                "A fonte oficial do TSE está identificada abaixo; tente novamente mais tarde."
-            ),
-        )
-    candidates, asset_rows = await asyncio.gather(
-        run_in_threadpool(_rows, candidate_response.content),
-        run_in_threadpool(_rows, asset_response.content),
-    )
-    matches = [
-        row
-        for row in candidates
-        if folded(row.get("NM_CANDIDATO", "")) == wanted
-        and (len(person.state) != 2 or row.get("SG_UF") == person.state)
-    ]
-    if person.provider.startswith("tse"):
-        matches = [row for row in candidates if row.get("SQ_CANDIDATO") == str(person.id)]
-    identities = {row.get("SQ_CANDIDATO") for row in matches}
-    assets = [
-        DeclaredAsset(
-            kind=row.get("DS_TIPO_BEM_CANDIDATO") or "Tipo não informado",
-            description=row.get("DS_BEM_CANDIDATO") or "Descrição não informada",
-            value=_money(row.get("VR_BEM_CANDIDATO", "0")),
-        )
-        for row in asset_rows
-        if row.get("SQ_CANDIDATO") in identities
-    ]
-    assets.sort(key=lambda item: item.value, reverse=True)
+    hub_disclosure = await _hub_assets(client, person, year)
+    if hub_disclosure is not None:
+        return hub_disclosure
     return AssetDisclosure(
-        available=bool(matches),
+        available=False,
         election_year=year,
-        total=sum((item.value for item in assets), Decimal()),
-        assets=assets,
-        source_url=source,
+        source_url=f"https://hubpolitico.com.br/perfil/{_hub_slug(person.name)}/financeiro/patrimonio/{year}",
         notice=(
-            f"Bens declarados ao TSE na candidatura de {year}. A declaração não comprova "
-            "propriedade ou valor atuais. Sites de empresas só são vinculados quando o "
-            "endereço oficial pode ser confirmado; nenhum endereço é inferido pelo nome."
+            "Não encontramos uma publicação alternativa de patrimônio com correspondência "
+            "segura para este perfil. Nenhum valor foi preenchido a partir do TSE."
         ),
     )

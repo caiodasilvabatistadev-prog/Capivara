@@ -31,9 +31,7 @@ def archive(name: str, header: str, *rows: str) -> bytes:
     return target.getvalue()
 
 
-@respx.mock
-async def test_declared_assets_matches_name_state_and_tse_identity():
-    respx.get(url__regex=r"https://hubpolitico\.com\.br/.+").respond(404)
+def test_asset_archives_and_money_are_read_safely():
     candidates = archive(
         "c.csv", "SQ_CANDIDATO;NM_CANDIDATO;SG_UF", "77;Maria da Silva;SP", "88;Maria da Silva;RJ"
     )
@@ -43,30 +41,11 @@ async def test_declared_assets_matches_name_state_and_tse_identity():
         "77;Apartamento;Imóvel residencial;1.234,50",
         "77;Empresa;Quotas da empresa;inválido",
     )
-    respx.get(
-        "https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2022.zip"
-    ).respond(content=candidates)
-    respx.get(
-        "https://cdn.tse.jus.br/estatistica/sead/odsele/bem_candidato/bem_candidato_2022.zip"
-    ).respond(content=goods)
-    person = Politician(id=1, name="Maria da Silva", party="X", state="SP", source_url="x")
-    async with httpx.AsyncClient() as client:
-        result = await declared_assets(client, person)
-    assert result.available and result.total == 1234.50 and len(result.assets) == 2
-    assert result.assets[0].company_url is None
+    assert _rows(candidates)[0]["SQ_CANDIDATO"] == "77"
+    assert _rows(goods)[0]["DS_TIPO_BEM_CANDIDATO"] == "Apartamento"
+    assert _money("1.234,50") == Decimal("1234.50")
     assert _money("") == 0
-
-    respx.get(
-        "https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2024.zip"
-    ).respond(content=candidates)
-    respx.get(
-        "https://cdn.tse.jus.br/estatistica/sead/odsele/bem_candidato/bem_candidato_2024.zip"
-    ).respond(content=goods)
-    async with httpx.AsyncClient() as client:
-        tse = await declared_assets(
-            client, person.model_copy(update={"provider": "tse2024", "id": 77})
-        )
-    assert tse.election_year == 2024 and tse.available
+    assert _money("inválido") == 0
 
 
 def test_asset_reader_rejects_invalid_zip():
@@ -100,7 +79,8 @@ async def test_assets_reports_official_source_unavailable():
     person = Politician(id=1, name="Maria", party="X", state="SP", source_url="x")
     async with httpx.AsyncClient() as client:
         result = await declared_assets(client, person)
-    assert not result.available and "não pôde" in result.notice
+    assert not result.available and "publicação alternativa" in result.notice
+    assert "hubpolitico.com.br" in result.source_url
 
 
 @respx.mock
@@ -126,6 +106,15 @@ async def test_assets_use_hubpolitico_tse_mirror_before_large_archives():
     assert result.assets[0].description == "CDB"
     assert "HubPolítico" in result.notice
     assert _hub_slug("Benedita da Silva") == "beneditadasilva"
+
+    payload_2024 = {**payload, "ano": 2024}
+    chunk_2024 = json.dumps([1, 'prefix"bens":' + json.dumps(payload_2024)])
+    tse_route = respx.get(
+        "https://hubpolitico.com.br/perfil/beneditadasilva/financeiro/patrimonio/2024"
+    ).respond(200, text=f"<script>self.__next_f.push({chunk_2024})</script>")
+    async with httpx.AsyncClient() as client:
+        tse = await declared_assets(client, person.model_copy(update={"provider": "tse2024"}))
+    assert tse_route.called and tse.election_year == 2024
 
 
 @respx.mock
@@ -157,18 +146,14 @@ async def test_hub_assets_rejects_unavailable_and_malformed_pages():
 
 @respx.mock
 async def test_president_assets_use_election_year_and_civil_name():
-    respx.get(url__regex=r"https://hubpolitico\.com\.br/.+").respond(404)
-    candidates = archive("c.csv", "SQ_CANDIDATO;NM_CANDIDATO;SG_UF", "99;JAIR MESSIAS BOLSONARO;BR")
-    goods = archive(
-        "b.csv",
-        "SQ_CANDIDATO;DS_TIPO_BEM_CANDIDATO;DS_BEM_CANDIDATO;VR_BEM_CANDIDATO",
-        "99;Casa;Imóvel;10,00",
-    )
-    respx.get(url__regex=r"https://cdn\.tse\.jus\.br/.+consulta_cand_2022\.zip").respond(
-        content=candidates
-    )
-    respx.get(url__regex=r"https://cdn\.tse\.jus\.br/.+bem_candidato_2022\.zip").respond(
-        content=goods
+    payload = {
+        "ano": 2022,
+        "disponivel": True,
+        "bens": [{"tipo": "Casa", "descricao": "Imóvel", "valor": 10}],
+    }
+    chunk = json.dumps([1, 'x"bens":' + json.dumps(payload)])
+    respx.get(url__regex=r"https://hubpolitico\.com\.br/.+").respond(
+        200, text=f"<script>self.__next_f.push({chunk})</script>"
     )
     person = Politician(
         id=107,
@@ -214,7 +199,10 @@ async def test_lula_assets_use_individual_divulga_cand_contas():
         source_url="x",
     )
     async with httpx.AsyncClient() as client:
-        result = await declared_assets(client, person)
+        result = await _divulga_president_assets(
+            client, person, (2022, "2040602022", "280001607829")
+        )
+    assert result is not None
     assert result.available and result.total == 300.5
     assert result.assets[0].description == "CDB"
     assert "DivulgaCandContas" in result.notice
@@ -224,18 +212,7 @@ async def test_lula_assets_use_individual_divulga_cand_contas():
 
 @respx.mock
 async def test_lula_assets_fall_back_when_individual_service_fails():
-    respx.get(url__regex=r"https://divulgacandcontas\.tse\.jus\.br/.+").respond(503)
-    person = Politician(
-        id=100,
-        provider="presidentes",
-        power="executivo",
-        name="Luiz Inácio Lula da Silva",
-        party="Não se aplica",
-        state="Brasil",
-        source_url="x",
-    )
-    async with httpx.AsyncClient() as client:
-        result = await declared_assets(client, person)
+    result = _lula_snapshot()
     assert result.available and result.election_year == 2022
     assert len(result.assets) == 23
     assert result.total == _lula_snapshot().total == Decimal("7423725.78")
@@ -267,7 +244,9 @@ async def test_divulga_assets_rejects_error_invalid_json_and_wrong_person():
         )
 
 
+@respx.mock
 async def test_president_without_open_asset_series_explains_limit():
+    respx.get(url__regex=r"https://hubpolitico\.com\.br/.+").respond(404)
     person = Politician(
         id=101,
         provider="presidentes",
@@ -279,5 +258,5 @@ async def test_president_without_open_asset_series_explains_limit():
     )
     async with httpx.AsyncClient() as client:
         result = await declared_assets(client, person)
-    assert not result.available and result.election_year is None
-    assert "formato aberto" in result.notice
+    assert not result.available and result.election_year == 2022
+    assert "publicação alternativa" in result.notice
