@@ -13,6 +13,7 @@ SOURCE_NAMES = {
     "executivo": "Ministérios",
     "judiciario": "STJ",
     "governadores": "Governadores — 27 UFs",
+    "municipais": "Prefeitos e vereadores eleitos — municípios",
     "stf": "Ministros do STF",
     "presidentes": "Ex-presidentes da República",
     "camara_historica": "Câmara — acervo histórico",

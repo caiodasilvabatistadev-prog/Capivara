@@ -3,6 +3,7 @@ import json
 import re
 from decimal import Decimal, InvalidOperation
 from io import BytesIO, TextIOWrapper
+from typing import cast
 from zipfile import BadZipFile, ZipFile
 
 import httpx
@@ -70,11 +71,18 @@ class DeclaredAsset(BaseModel):
     company_url: str | None = None
 
 
+class AssetHistory(BaseModel):
+    year: int
+    total: Decimal
+
+
 class AssetDisclosure(BaseModel):
     available: bool
     election_year: int | None = None
     total: Decimal = Decimal()
     assets: list[DeclaredAsset] = Field(default_factory=list)
+    history: list[AssetHistory] = Field(default_factory=list)
+    growth_percentage: Decimal | None = None
     source_url: str
     notice: str
 
@@ -111,7 +119,7 @@ def _hub_slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]", "", folded(name))
 
 
-def _hub_payload(page: str) -> dict[str, object] | None:
+def _hub_value(page: str, key: str) -> object | None:
     decoded = ""
     for match in re.finditer(r"self\.__next_f\.push\((\[.*?\])\)</script>", page):
         try:
@@ -120,7 +128,7 @@ def _hub_payload(page: str) -> dict[str, object] | None:
             continue
         if len(chunk) > 1 and isinstance(chunk[1], str):
             decoded += chunk[1]
-    marker = '"bens":'
+    marker = f'"{key}":'
     position = decoded.find(marker)
     if position < 0:
         return None
@@ -128,6 +136,11 @@ def _hub_payload(page: str) -> dict[str, object] | None:
         payload, _ = json.JSONDecoder().raw_decode(decoded[position + len(marker) :])
     except json.JSONDecodeError:
         return None
+    return cast(object, payload)
+
+
+def _hub_payload(page: str) -> dict[str, object] | None:
+    payload = _hub_value(page, "bens")
     return payload if isinstance(payload, dict) else None
 
 
@@ -157,11 +170,27 @@ async def _hub_assets(
         if isinstance(item, dict)
     ]
     assets.sort(key=lambda item: item.value, reverse=True)
+    raw_history = _hub_value(response.text, "serie")
+    history = sorted(
+        [
+            AssetHistory(year=int(item["ano"]), total=_json_money(item.get("patrimonio_total")))
+            for item in raw_history
+            if isinstance(item, dict)
+            and item.get("ano")
+            and item.get("patrimonio_total") is not None
+        ],
+        key=lambda item: item.year,
+    ) if isinstance(raw_history, list) else []
+    growth = None
+    if len(history) > 1 and history[0].total > 0:
+        growth = (history[-1].total - history[0].total) * 100 / history[0].total
     return AssetDisclosure(
         available=True,
         election_year=year,
         total=sum((item.value for item in assets), Decimal()),
         assets=assets,
+        history=history,
+        growth_percentage=growth,
         source_url=page_url,
         notice=(
             f"Patrimônio informado na cobertura eleitoral de {year} do HubPolítico. "

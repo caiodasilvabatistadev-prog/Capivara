@@ -18,7 +18,7 @@ from app.composition import HouseComposition, composition
 from app.dashboard import Dashboard, ReportSection
 from app.directories import ExecutiveProvider, JudicialProvider, SenateProvider
 from app.editorial import PublicContext, context_for
-from app.elections import DemographicSnapshot, ElectionProvider
+from app.elections import DemographicSnapshot, ElectionProvider, MunicipalElectedProvider
 from app.family import PoliticalFamily, documented_family
 from app.governors import GovernorProvider
 from app.models import Politician
@@ -84,6 +84,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "executivo": ExecutiveProvider(client),
             "judiciario": JudicialProvider(client),
             "governadores": GovernorProvider(client),
+            "municipais": MunicipalElectedProvider(client, 2024),
             "stf": CatalogProvider(client, "stf", STF_FIGURES),
             "presidentes": CatalogProvider(client, "presidentes", PRESIDENTS),
             "camara_historica": HistoricalCamaraProvider(client),

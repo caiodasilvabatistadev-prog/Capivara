@@ -275,3 +275,26 @@ class ElectionProvider:
                 f"exibidos."
             ),
         )
+
+
+class MunicipalElectedProvider(ElectionProvider):
+    async def records(self, query: str | int) -> list[dict[str, str]]:
+        rows = await super().records(query)
+        return [
+            row
+            for row in rows
+            if row.get("DS_CARGO") in {"PREFEITO", "VEREADOR"}
+            and row.get("DS_SIT_TOT_TURNO", "").startswith("ELEITO")
+        ]
+
+    def person(self, row: dict[str, str]) -> Politician:
+        person = super().person(row)
+        cargo = row["DS_CARGO"].title()
+        city = row["NM_UE"]
+        return person.model_copy(
+            update={
+                "provider": "municipais",
+                "role": f"{cargo} eleito(a) · mandato municipal",
+                "institution": f"{city} · {row['SG_UF']}",
+            }
+        )

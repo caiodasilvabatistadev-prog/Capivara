@@ -94,7 +94,13 @@ async def test_assets_use_hubpolitico_tse_mirror_before_large_archives():
             "inválido",
         ],
     }
-    chunk = json.dumps([1, 'prefix"bens":' + json.dumps(payload) + ',"serie":[]'])
+    series = [
+        {"ano": 2018, "patrimonio_total": 100},
+        {"ano": 2022, "patrimonio_total": 150},
+    ]
+    chunk = json.dumps(
+        [1, 'prefix"bens":' + json.dumps(payload) + ',"serie":' + json.dumps(series)]
+    )
     page = f"<script>self.__next_f.push({chunk})</script>"
     route = respx.get(
         "https://hubpolitico.com.br/perfil/beneditadasilva/financeiro/patrimonio/2022"
@@ -104,6 +110,7 @@ async def test_assets_use_hubpolitico_tse_mirror_before_large_archives():
         result = await declared_assets(client, person)
     assert route.called and result.available and result.total == Decimal("350.5")
     assert result.assets[0].description == "CDB"
+    assert result.growth_percentage == 50 and len(result.history) == 2
     assert "HubPolítico" in result.notice
     assert _hub_slug("Benedita da Silva") == "beneditadasilva"
 
